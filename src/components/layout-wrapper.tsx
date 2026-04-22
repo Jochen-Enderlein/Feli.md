@@ -31,7 +31,9 @@ import {
   Pencil,
   ChevronDown,
   Folder,
-  Search
+  Search,
+  Settings,
+  Library
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -41,7 +43,9 @@ import {
   deleteFileAction, 
   deleteFolderAction,
   moveItemAction,
-  searchNotesAction
+  searchNotesAction,
+  setVaultPathAction,
+  getVaultPathAction
 } from "@/app/actions";
 import { toast } from "sonner";
 import {
@@ -88,6 +92,16 @@ type SearchResult = {
   snippet: string;
 };
 
+declare global {
+  interface Window {
+    electron?: {
+      selectFolder: () => Promise<string | null>;
+      getVaultPath: () => Promise<string | null>;
+      setVaultPath: (path: string) => Promise<boolean>;
+    };
+  }
+}
+
 export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -98,17 +112,30 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = React.useState(false);
   const [isPending, setIsPending] = React.useState(false);
+  const [vaultPath, setVaultPath] = React.useState<string | null>(null);
+  const [isVaultLoading, setIsVaultLoading] = React.useState(true);
 
-  // Get current title for header
-  const currentTitle = React.useMemo(() => {
-    if (pathname === '/graph') return 'Graph View';
-    if (pathname === '/tags') return 'Tags';
-    if (pathname.startsWith('/note/')) {
-      const parts = pathname.split('/');
-      return decodeURIComponent(parts[parts.length - 1]);
+  React.useEffect(() => {
+    const loadVault = async () => {
+      const path = await getVaultPathAction();
+      setVaultPath(path);
+      setIsVaultLoading(false);
+    };
+    loadVault();
+  }, []);
+
+  const handleSelectVault = async () => {
+    if (window.electron) {
+      const path = await window.electron.selectFolder();
+      if (path) {
+        await setVaultPathAction(path);
+        setVaultPath(path);
+        router.refresh();
+      }
+    } else {
+      toast.error("Electron not detected");
     }
-    return 'Library';
-  }, [pathname]);
+  };
 
   const fullTree = React.useMemo(() => {
     const root: TreeNode = { name: 'Root', path: '', notes: [], children: {} };
@@ -320,6 +347,34 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
     );
   };
 
+  // Current Title logic
+  const currentTitle = React.useMemo(() => {
+    if (pathname === '/graph') return 'Graph View';
+    if (pathname === '/tags') return 'Tags';
+    if (pathname.startsWith('/note/')) {
+      const parts = pathname.split('/');
+      return decodeURIComponent(parts[parts.length - 1]);
+    }
+    return 'Library';
+  }, [pathname]);
+
+  if (!vaultPath && !isVaultLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#050505] text-white p-8">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tighter">Welcome to Skriva</h1>
+            <p className="text-white/40">Select a folder to use as your knowledge base.</p>
+          </div>
+          <Button onClick={handleSelectVault} size="lg" className="w-full h-12 bg-white text-black hover:bg-white/90">
+            Open or Create Vault
+          </Button>
+          <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Your files stay on your computer.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <CommandPalette notes={notes} />
@@ -364,6 +419,9 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               </SidebarMenuButton>
               <SidebarMenuButton size="sm" onClick={() => setDialog({ type: 'create-folder', parentFolder: '' })} tooltip="New Folder">
                 <FolderPlus className="h-4 w-4" />
+              </SidebarMenuButton>
+              <SidebarMenuButton size="sm" onClick={handleSelectVault} tooltip="Switch Vault">
+                <Library className="h-4 w-4 opacity-50" />
               </SidebarMenuButton>
             </div>
           </SidebarHeader>

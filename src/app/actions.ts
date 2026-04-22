@@ -5,7 +5,9 @@ import {
   deleteFile as deleteFileFromFs, 
   deleteFolder as deleteFolderFromFs,
   moveItem as moveItemInFs,
-  searchNotes
+  searchNotes,
+  getStoredVaultPath,
+  setStoredVaultPath
 } from '@/lib/notes';
 import { revalidatePath } from 'next/cache';
 import fs from 'fs/promises';
@@ -37,7 +39,9 @@ export async function createNoteAction(title: string, folder: string = '') {
 
 export async function createFolderAction(folderName: string, parentFolder: string = '') {
   try {
-    const fullPath = path.join(NOTES_PATH, parentFolder, folderName);
+    const { getStoredVaultPath } = await import('@/lib/notes');
+    const vaultPath = getStoredVaultPath() || path.join(process.cwd(), 'assets/notes');
+    const fullPath = path.join(vaultPath, parentFolder, folderName);
     await fs.mkdir(fullPath, { recursive: true });
     revalidatePath('/');
     return { success: true };
@@ -85,4 +89,14 @@ export async function searchNotesAction(query: string) {
     console.error('Search action error:', error);
     return { success: false, error: 'Search failed' };
   }
+}
+
+export async function getVaultPathAction() {
+  return getStoredVaultPath();
+}
+
+export async function setVaultPathAction(vaultPath: string) {
+  setStoredVaultPath(vaultPath);
+  revalidatePath('/');
+  return { success: true };
 }

@@ -1,0 +1,7 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electron', {
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  getVaultPath: () => ipcRenderer.invoke('get-vault-path'),
+  setVaultPath: (path) => ipcRenderer.invoke('set-vault-path', path),
+});
