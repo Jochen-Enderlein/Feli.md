@@ -1,7 +1,6 @@
-import { getNoteContent, getNotes, getBacklinks, getFolders } from "@/lib/notes";
+import { getNoteContent, getNotes, getBacklinks, getFolders, getGraphData } from "@/lib/notes";
 import { Editor } from "@/components/editor";
 import { LayoutWrapper } from "@/components/layout-wrapper";
-import { Backlinks } from "@/components/backlinks";
 import { notFound } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
@@ -23,13 +22,17 @@ export default async function NotePage({ params }: { params: Promise<{ slug: str
     const content = await getNoteContent(slug);
     const title = decodeURIComponent(slug).split('/').pop() || '';
     const backlinks = await getBacklinks(title);
+    const graphData = await getGraphData();
     
     return (
       <LayoutWrapper notes={notes} folders={folders}>
-        <div className="max-w-4xl mx-auto py-12 px-6">
-          <Editor slug={slug} initialContent={content} allNotes={notes} />
-          <Backlinks backlinks={backlinks} />
-        </div>
+        <Editor 
+          slug={slug} 
+          initialContent={content} 
+          allNotes={notes} 
+          graphData={graphData} 
+          backlinks={backlinks} 
+        />
       </LayoutWrapper>
     );
   } catch (error) {

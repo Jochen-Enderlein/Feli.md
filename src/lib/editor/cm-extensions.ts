@@ -1,6 +1,7 @@
 import { gutter, GutterMarker } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { CompletionContext, CompletionResult, autocompletion } from "@codemirror/autocomplete";
+import { NoteMetadata } from "@/lib/notes";
 
 // Gutter for icons
 const createIconSpan = (svgContent: string) => {
@@ -77,7 +78,7 @@ const slashCommands = [
   { label: "/table", displayLabel: "Table", type: "keyword", apply: "\n| Header | Header |\n|--------|--------|\n| Cell   | Cell   |\n", detail: "Markdown table" }
 ];
 
-export const autocompleteExtensions = (allTags: string[]) => {
+export const autocompleteExtensions = (allTags: string[], allNotes: NoteMetadata[]) => {
   return autocompletion({
     override: [
       (context: CompletionContext): CompletionResult | null => {
@@ -106,6 +107,19 @@ export const autocompleteExtensions = (allTags: string[]) => {
           };
         }
         return null;
+      },
+      (context: CompletionContext): CompletionResult | null => {
+        let word = context.matchBefore(/\[\[[^\]]*/);
+        if (!word) return null;
+        
+        return {
+          from: word.from + 2,
+          options: allNotes.map(note => ({
+            label: note.title,
+            type: "text",
+            apply: `${note.title}]]`
+          }))
+        };
       }
     ]
   });
