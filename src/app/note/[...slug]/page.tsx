@@ -1,7 +1,7 @@
 import { getNoteContent, getNotes, getBacklinks, getFolders, getGraphData, getTags } from "@/lib/notes";
 import { Editor } from "@/components/editor";
 import { LayoutWrapper } from "@/components/layout-wrapper";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +39,6 @@ export default async function NotePage({ params }: { params: Promise<{ slug: str
     );
   } catch (error) {
     console.error(error);
-    notFound();
+    redirect('/');
   }
 }

@@ -19,8 +19,8 @@ export function TabList() {
           className={cn(
             "group relative flex items-center h-8 px-3 gap-2 min-w-[100px] max-w-[180px] text-[12px] font-medium rounded-md transition-all duration-200 select-none",
             activeTab === tab.slug
-              ? "bg-white/10 text-white shadow-sm"
-              : "text-white/40 hover:bg-white/5 hover:text-white/60"
+              ? "bg-accent text-accent-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           )}
         >
           <Link href={`/note/${tab.slug}`} className="flex-1 flex items-center gap-2 truncate pr-4">
@@ -32,7 +32,7 @@ export function TabList() {
               e.stopPropagation();
               closeTab(tab.slug);
             }}
-            className="absolute right-1.5 opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-white/10 transition-all duration-200"
+            className="absolute right-1.5 opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-background/20 transition-all duration-200"
           >
             <X className="h-3 w-3" />
           </button>

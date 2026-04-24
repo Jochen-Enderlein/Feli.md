@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { saveNoteAction } from '@/app/actions';
 import { toast } from 'sonner';
 import { useDebounce, useDebouncedCallback } from '@/hooks/use-debounce';
+import { useTheme } from 'next-themes';
 
 const Excalidraw = dynamic(
   () => import('@excalidraw/excalidraw').then((mod) => mod.Excalidraw),
@@ -19,13 +20,14 @@ interface ExcalidrawEditorProps {
 export function ExcalidrawEditor({ slug, initialContent }: ExcalidrawEditorProps) {
   const [data, setData] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     try {
       if (!initialContent || initialContent.trim() === '') {
         setData({
           elements: [],
-          appState: { viewBackgroundColor: "#121212" },
+          appState: { viewBackgroundColor: resolvedTheme != 'dark' ? "#121212" : "#ffffff" },
           files: {},
         });
       } else {
@@ -38,12 +40,12 @@ export function ExcalidrawEditor({ slug, initialContent }: ExcalidrawEditorProps
       // Fallback to empty if parse fails
       setData({
         elements: [],
-        appState: { viewBackgroundColor: "#121212" },
+        appState: { viewBackgroundColor: resolvedTheme != 'dark' ? "#121212" : "#ffffff" },
         files: {},
       });
       setIsLoaded(true);
     }
-  }, [initialContent]);
+  }, [initialContent, resolvedTheme]);
 
   const saveData = useDebouncedCallback(async (newData: any) => {
     if (!newData) return;
@@ -73,21 +75,21 @@ export function ExcalidrawEditor({ slug, initialContent }: ExcalidrawEditorProps
 
   if (!isLoaded || !data) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-[#050505]">
+      <div className="w-full h-full flex items-center justify-center bg-background">
         <span className="text-xs text-muted-foreground uppercase tracking-widest animate-pulse">Loading Drawing...</span>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[calc(100vh-140px)] mt-2 border border-white/10 rounded-xl overflow-hidden bg-[#121212] shadow-2xl relative">
+    <div className="w-full h-[calc(100vh-140px)] mt-2 border border-border rounded-xl overflow-hidden bg-background shadow-2xl relative">
       <Excalidraw
         initialData={{
           elements: data.elements || [],
           appState: { 
-            ...data.appState,
+            ...data.appState, 
             isLoading: false,
-            viewBackgroundColor: data.appState?.viewBackgroundColor || "#121212",
+            viewBackgroundColor: data.appState?.viewBackgroundColor || (resolvedTheme != 'dark' ? "#121212" : "#ffffff"),
             // Force 100% zoom on fresh load if it's missing or weird
             zoom: { value: 1 },
             scrollX: data.appState?.scrollX || 0,
@@ -96,7 +98,7 @@ export function ExcalidrawEditor({ slug, initialContent }: ExcalidrawEditorProps
           files: data.files || {},
         }}
         onChange={handleChange}
-        theme="dark"
+        theme={resolvedTheme != 'dark' ? 'dark' : 'light'}
         UIOptions={{
           canvasActions: {
             toggleTheme: false,

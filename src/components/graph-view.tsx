@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useTheme } from 'next-themes';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
   ssr: false,
@@ -34,6 +35,7 @@ interface GraphViewProps {
 
 export function GraphView({ data }: GraphViewProps) {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [filter, setFilter] = useState('');
   
@@ -59,17 +61,19 @@ export function GraphView({ data }: GraphViewProps) {
 
   if (!mounted) return null;
 
+  const isDark = resolvedTheme === 'dark';
+
   return (
-    <div className="w-full h-[calc(100vh-140px)] bg-[#050505] rounded-xl overflow-hidden border border-white/5 relative flex flex-col">
+    <div className="w-full h-[calc(100vh-140px)] bg-background rounded-xl overflow-hidden border border-border relative flex flex-col">
       {/* Local Filter Bar */}
       <div className="absolute top-4 left-4 z-10 w-64 group">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-white/30" />
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
           <Input
             placeholder="Filter graph..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="h-9 pl-8 bg-[#0f0f0f]/80 backdrop-blur-md border-white/10 text-[12px] focus-visible:ring-white/20 rounded-full"
+            className="h-9 pl-8 bg-background/80 backdrop-blur-md border-border text-[12px] focus-visible:ring-ring rounded-full"
           />
         </div>
       </div>
@@ -78,8 +82,8 @@ export function GraphView({ data }: GraphViewProps) {
         <ForceGraph2D
           graphData={filteredData}
           nodeLabel="title"
-          backgroundColor="#050505"
-          linkColor={() => 'rgba(255, 255, 255, 0.15)'}
+          backgroundColor={isDark ? '#050505' : '#ffffff'}
+          linkColor={() => isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
           linkWidth={1.5}
           nodeRelSize={6}
           onNodeClick={(node: any) => {
@@ -103,13 +107,13 @@ export function GraphView({ data }: GraphViewProps) {
             ctx.fill();
             
             // Add a glow effect
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = isDark ? 15 : 5;
             ctx.shadowColor = node.type === 'tag' ? 'rgba(168, 85, 247, 0.4)' : 'rgba(59, 130, 246, 0.4)';
 
             // Draw label text (only if zoom is high enough)
             if (globalScale > 1.5 || filter) {
               ctx.shadowBlur = 0;
-              ctx.fillStyle = 'rgba(15, 15, 15, 0.9)';
+              ctx.fillStyle = isDark ? 'rgba(15, 15, 15, 0.9)' : 'rgba(255, 255, 255, 0.95)';
               ctx.roundRect(
                 node.x - bckgDimensions[0] / 2, 
                 node.y + 6, 
@@ -121,7 +125,7 @@ export function GraphView({ data }: GraphViewProps) {
 
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
-              ctx.fillStyle = node.type === 'tag' ? '#d8b4fe' : 'rgba(255, 255, 255, 0.8)';
+              ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)');
               ctx.fillText(label, node.x, node.y + 7);
             }
           }}
@@ -129,10 +133,10 @@ export function GraphView({ data }: GraphViewProps) {
       </div>
 
       <div className="absolute bottom-4 right-4 flex gap-4 pointer-events-none">
-        <div className="flex items-center gap-2 text-[10px] text-white/30 uppercase tracking-widest font-bold bg-[#0f0f0f]/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/5">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-bold bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border">
           <div className="w-2 h-2 rounded-full bg-[#3b82f6]" /> Note
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-white/30 uppercase tracking-widest font-bold bg-[#0f0f0f]/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/5">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-bold bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border">
           <div className="w-2 h-2 rounded-full bg-[#a855f7]" /> Tag
         </div>
       </div>

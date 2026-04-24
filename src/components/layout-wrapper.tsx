@@ -65,6 +65,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ThemeToggle } from "./theme-toggle";
 import { useDebounce } from '@/hooks/use-debounce';
 
 interface LayoutWrapperProps {
@@ -300,7 +301,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                           </button>
                         }
                       />
-                    <DropdownMenuContent align="end" className="w-40 bg-[#0f0f0f] border-white/10 text-white">
+                    <DropdownMenuContent align="end" className="w-40 bg-popover border-border text-popover-foreground">
                       <DropdownMenuItem onClick={() => setDialog({ type: 'create-note', parentFolder: node.path })}>
                         <Plus className="mr-2 h-4 w-4" /> New Note
                       </DropdownMenuItem>
@@ -318,7 +319,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                 </div>
               </div>
               <CollapsibleContent>
-                  <SidebarMenuSub className="ml-4 border-l border-white/5 pl-2 min-w-max">
+                  <SidebarMenuSub className="ml-4 border-l border-border pl-2 min-w-max">
                     {Object.values(node.children).map(child => renderTree(child))}
                     {node.notes.map(note => (
                       <SidebarMenuItem key={note.slug}>
@@ -329,7 +330,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                           </SidebarMenuButton>
                           <DropdownMenu>
                             <DropdownMenuTrigger render={<SidebarMenuAction showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
-                            <DropdownMenuContent side="right" align="start" className="bg-[#0f0f0f] border-white/10 text-white">
+                            <DropdownMenuContent side="right" align="start" className="bg-popover border-border text-popover-foreground">
                               <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug }); setInputValue(decodeURIComponent(note.slug)); }}>
                                 <Pencil className="mr-2 h-4 w-4" /> Rename / Move
                               </DropdownMenuItem>
@@ -359,7 +360,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                   </SidebarMenuButton>
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<SidebarMenuAction showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
-                    <DropdownMenuContent side="right" align="start" className="bg-[#0f0f0f] border-white/10 text-white">
+                    <DropdownMenuContent side="right" align="start" className="bg-popover border-border text-popover-foreground">
                       <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug }); setInputValue(decodeURIComponent(note.slug)); }}>
                         <Pencil className="mr-2 h-4 w-4" /> Rename / Move
                       </DropdownMenuItem>
@@ -390,16 +391,16 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
 
   if (!vaultPath && !isVaultLoading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-[#050505] text-white p-8">
+      <div className="h-screen w-full flex items-center justify-center bg-background text-foreground p-8">
         <div className="max-w-md w-full space-y-8 text-center">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold tracking-tighter">Welcome to Skriva</h1>
-            <p className="text-white/40">Select a folder to use as your knowledge base.</p>
+            <p className="text-muted-foreground">Select a folder to use as your knowledge base.</p>
           </div>
-          <Button onClick={handleSelectVault} size="lg" className="w-full h-12 bg-white text-black hover:bg-white/90">
+          <Button onClick={handleSelectVault} size="lg" className="w-full h-12">
             Open or Create Vault
           </Button>
-          <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Your files stay on your computer.</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Your files stay on your computer.</p>
         </div>
       </div>
     );
@@ -409,7 +410,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
     <SidebarProvider>
       <CommandPalette notes={notes} />
       <Dialog open={dialog.type !== null} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-[425px] bg-[#0f0f0f] border-white/10 text-white">
+        <DialogContent className="sm:max-w-[425px] bg-popover border-border text-popover-foreground">
           <DialogHeader>
             <DialogTitle>
               {dialog.type === 'create-note' && 'Create New Note'}
@@ -419,18 +420,18 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               {dialog.type === 'delete-folder' && 'Delete Folder'}
               {dialog.type === 'rename' && 'Rename / Move Item'}
             </DialogTitle>
-            <DialogDescription className="text-white/50">
+            <DialogDescription className="text-muted-foreground">
               {dialog.type === 'delete-file' && 'Are you sure you want to delete this note? This action cannot be undone.'}
               {dialog.type === 'delete-folder' && `Are you sure you want to delete "${dialog.target}" and all its contents?`}
             </DialogDescription>
           </DialogHeader>
           {(dialog.type === 'create-note' || dialog.type === 'create-excalidraw' || dialog.type === 'create-folder' || dialog.type === 'rename') && (
             <div className="py-4">
-              <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Enter name..." className="bg-white/5 border-white/10 text-white" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleConfirm()} />
+              <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Enter name..." className="bg-background border-border" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleConfirm()} />
             </div>
           )}
           <DialogFooter>
-            <Button variant="ghost" onClick={closeDialog} className="text-white/50 hover:text-white hover:bg-white/5">Cancel</Button>
+            <Button variant="ghost" onClick={closeDialog} className="text-muted-foreground hover:text-foreground">Cancel</Button>
             <Button variant={dialog.type?.startsWith('delete') ? 'destructive' : 'default'} onClick={handleConfirm} disabled={isPending || ((dialog.type === 'create-note' || dialog.type === 'create-excalidraw' || dialog.type === 'create-folder' || dialog.type === 'rename') && !inputValue.trim())}>
               {isPending ? 'Processing...' : 'Confirm'}
             </Button>
@@ -438,9 +439,9 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
         </DialogContent>
       </Dialog>
 
-      <div className="flex h-screen w-full overflow-hidden bg-[#050505] text-foreground font-sans">
-        <SidebarUI collapsible="icon" className="border-r border-white/5 bg-[#080808]">
-          <SidebarHeader className="border-b border-white/5 h-12 flex flex-row items-center px-4 justify-between">
+      <div className="flex h-screen w-full overflow-hidden bg-background text-foreground font-sans">
+        <SidebarUI collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+          <SidebarHeader className="border-b border-sidebar-border h-12 flex flex-row items-center px-4 justify-between">
             <div className="flex items-center gap-2 font-bold tracking-tight group-data-[collapsible=icon]:hidden">
               <span className="text-[10px] tracking-[0.3em] opacity-80 uppercase">Skriva</span>
             </div>
@@ -461,8 +462,8 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
           </SidebarHeader>
           <div className="px-3 py-2 group-data-[collapsible=icon]:hidden">
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-white/30" />
-              <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-white/5 border-white/5 text-[12px] focus-visible:ring-white/10" />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring/20" />
             </div>
           </div>
           <SidebarContent className="no-scrollbar overflow-x-auto">
@@ -481,27 +482,27 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                         <SidebarMenuItem key={result.slug}>
                           <SidebarMenuButton render={<Link href={`/note/${result.slug}`} />} isActive={pathname === `/note/${result.slug}`} className="h-auto py-2 items-start flex-col gap-1">
                             <span className="font-medium text-[13px]">{result.title}</span>
-                            <span className="text-[11px] opacity-40 italic line-clamp-2 leading-tight">{result.snippet}</span>
+                            <span className="text-[11px] opacity-40 italic line-clamp-2 leading-tight text-muted-foreground">{result.snippet}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       ))}
-                      {searchResults.length === 0 && <div className="p-4 text-xs text-white/20 italic text-center">No matches found</div>}
+                      {searchResults.length === 0 && <div className="p-4 text-xs text-muted-foreground italic text-center">No matches found</div>}
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
               )}
 
-              <SidebarGroup className="mt-auto border-t border-white/5">
+              <SidebarGroup className="mt-auto border-t border-sidebar-border">
                 <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest opacity-30 px-2 mb-1">Explore</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link href="/tags" />} isActive={pathname === '/tags'} tooltip="Tags" className="hover:bg-white/5 data-[active=true]:bg-white/10">
+                      <SidebarMenuButton render={<Link href="/tags" />} isActive={pathname === '/tags'} tooltip="Tags" className="hover:bg-accent data-[active=true]:bg-accent">
                         <Hash className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Tags</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link href="/graph" />} isActive={pathname === '/graph'} tooltip="Graph View" className="hover:bg-white/5 data-[active=true]:bg-white/10">
+                      <SidebarMenuButton render={<Link href="/graph" />} isActive={pathname === '/graph'} tooltip="Graph View" className="hover:bg-accent data-[active=true]:bg-accent">
                         <Share2 className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Graph View</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -513,28 +514,29 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
           <SidebarRail />
         </SidebarUI>
 
-        <div className="flex flex-1 flex-col overflow-hidden bg-[#050505]">
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-white/5 px-4 bg-[#050505]/50 backdrop-blur-md sticky top-0 z-20">
-            <SidebarTrigger className="-ml-1 opacity-50 hover:opacity-100 transition-opacity" />
+        <div className="flex flex-1 flex-col overflow-hidden bg-background">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4 bg-background/50 backdrop-blur-md sticky top-0 z-20">
+            <SidebarTrigger className="-ml-1 opacity-50 hover:opacity-100 transition-opacity text-foreground" />
             <div className="flex items-center gap-2 px-2">
-              <span className="text-[13px] font-semibold tracking-tight text-white/80 truncate max-w-[200px]">
+              <span className="text-[13px] font-semibold tracking-tight text-foreground truncate max-w-[200px]">
                 {currentTitle}
               </span>
             </div>
-            <div className="h-4 w-px bg-white/10 mx-1" />
+            <div className="h-4 w-px bg-border mx-1" />
             <div className="flex items-center gap-0.5">
+              <ThemeToggle />
               <Link href="/tags">
-                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity text-foreground">
                   <Hash className="h-4 w-4" />
                 </Button>
               </Link>
               <Link href="/graph">
-                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity text-foreground">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
-            <div className="h-4 w-px bg-white/10 mx-2" />
+            <div className="h-4 w-px bg-border mx-2" />
             <TabList />
           </header>
           <main className="flex-1 overflow-hidden">{children}</main>

@@ -148,11 +148,12 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     },
     ".cm-gutters": {
       backgroundColor: "transparent !important",
-      borderRight: "1px solid rgba(255, 255, 255, 0.1)",
-      color: "rgba(255,255,255,0.4)"
+      borderRight: "1px solid var(--border)",
+      color: "var(--muted-foreground)"
     },
     ".cm-activeLine, .cm-activeLineGutter": {
-      backgroundColor: "rgba(255, 255, 255, 0.03) !important",
+      backgroundColor: "var(--accent) !important",
+      opacity: "0.5"
     },
     ".cm-block-icons .cm-gutterElement": {
       display: "flex",
@@ -174,7 +175,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
   const BacklinksSection = () => {
     if (!initialBacklinks || initialBacklinks.length === 0) return null;
     return (
-      <div className="mt-16 pt-8 border-t border-white/10">
+      <div className="mt-16 pt-8 border-t border-border">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
           {initialBacklinks.length} {initialBacklinks.length === 1 ? 'mention' : 'mentions'} in other notes
         </h3>
@@ -183,7 +184,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
             <Link
               key={link.slug}
               href={`/note/${link.slug}`}
-              className="group block p-4 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-colors"
+              className="group block p-4 rounded-lg border border-border bg-accent/20 hover:bg-accent/40 transition-colors"
             >
               <div className="flex items-center gap-2 font-medium mb-1">
                 <div className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity">
@@ -241,7 +242,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Fixed Toolbar Container */}
         <div className="flex-none flex flex-col items-center pt-4 z-30 mb-6">
-          <div className="flex items-center gap-4 bg-[#0f0f0f]/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl transition-all">
+          <div className="flex items-center gap-4 bg-popover/80 backdrop-blur-xl border border-border p-1.5 rounded-full shadow-2xl transition-all">
             {!isExcalidraw && (
               <div className="flex items-center gap-2 px-3 border-r border-white/10 mr-1">
                 <Switch 
@@ -256,26 +257,26 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
             )}
             
             <div className="flex items-center gap-1 pr-2">
-              {!isExcalidraw && !isReadOnly && (
+              {!isReadOnly && (
                 <>
-                  <button onClick={() => insertFormat('# ')} className="p-1 hover:bg-white/10 rounded" title="Heading 1"><Heading1 className="w-4 h-4" /></button>
-                  <button onClick={() => insertFormat('## ')} className="p-1 hover:bg-white/10 rounded" title="Heading 2"><Heading2 className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-white/10" />
-                  <button onClick={() => insertFormat('**', '**')} className="p-1 hover:bg-white/10 rounded" title="Bold"><Bold className="w-4 h-4" /></button>
-                  <button onClick={() => insertFormat('*', '*')} className="p-1 hover:bg-white/10 rounded" title="Italic"><Italic className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-white/10" />
-                  <button onClick={() => insertFormat('- ')} className="p-1 hover:bg-white/10 rounded" title="Bullet List"><ListIcon className="w-4 h-4" /></button>
-                  <button onClick={() => insertFormat('```\n', '\n```')} className="p-1 hover:bg-white/10 rounded" title="Code Block"><Code className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-white/10" />
-                  <button onClick={() => insertFormat('\n| Header | Header | Header |\n|--------|--------|--------|\n| Cell   | Cell   | Cell   |\n')} className="p-1 hover:bg-white/10 rounded" title="Insert Table"><TableIcon className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-white/10" />
+                  <button onClick={() => insertFormat('# ')} className="p-1 hover:bg-accent rounded text-foreground" title="Heading 1"><Heading1 className="w-4 h-4" /></button>
+                  <button onClick={() => insertFormat('## ')} className="p-1 hover:bg-accent rounded text-foreground" title="Heading 2"><Heading2 className="w-4 h-4" /></button>
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
+                  <button onClick={() => insertFormat('**', '**')} className="p-1 hover:bg-accent rounded text-foreground" title="Bold"><Bold className="w-4 h-4" /></button>
+                  <button onClick={() => insertFormat('*', '*')} className="p-1 hover:bg-accent rounded text-foreground" title="Italic"><Italic className="w-4 h-4" /></button>
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
+                  <button onClick={() => insertFormat('- ')} className="p-1 hover:bg-accent rounded text-foreground" title="Bullet List"><ListIcon className="w-4 h-4" /></button>
+                  <button onClick={() => insertFormat('```\n', '\n```')} className="p-1 hover:bg-accent rounded text-foreground" title="Code Block"><Code className="w-4 h-4" /></button>
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
+                  <button onClick={() => insertFormat('\n| Header | Header | Header |\n|--------|--------|--------|\n| Cell   | Cell   | Cell   |\n')} className="p-1 hover:bg-accent rounded text-foreground" title="Insert Table"><TableIcon className="w-4 h-4" /></button>
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
                 </>
               )}
 
               {/* Graph Panel Toggle */}
               <button 
                 onClick={() => setIsGraphOpen(!isGraphOpen)}
-                className={`p-1.5 rounded-full transition-all ${isGraphOpen ? 'bg-primary/20 text-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                className={`p-1.5 rounded-full transition-all ${isGraphOpen ? 'bg-primary/20 text-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-foreground/70 hover:bg-accent hover:text-foreground'}`}
                 title={isGraphOpen ? "Hide Graph" : "Show Graph"}
               >
                 <Share2 className="w-4 h-4" />
@@ -360,23 +361,23 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
 
       {/* Collapsible Side Panel (Graph + ToC) */}
       <div 
-        className={`hidden xl:block transition-all duration-300 ease-in-out border-l border-white/5 bg-black/20 backdrop-blur-sm overflow-hidden h-full ${
+        className={`hidden xl:block transition-all duration-300 ease-in-out border-l border-border bg-background/50 backdrop-blur-sm overflow-hidden h-full ${
           isGraphOpen ? 'w-[400px] opacity-100' : 'w-0 opacity-0 border-l-0'
         }`}
       >
         <div className="w-[400px] h-full flex flex-col p-4 gap-4 overflow-hidden">
           {/* Top Section: Local Graph */}
           <div className="flex-[0.4] min-h-0 flex flex-col gap-2">
-            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20 px-2">Local Graph</div>
-            <div className="flex-1 rounded-xl overflow-hidden border border-white/5 bg-black/20">
+            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Local Graph</div>
+            <div className="flex-1 rounded-xl overflow-hidden border border-border bg-background">
               <MiniGraphView currentSlug={slug} currentContent={content} globalData={graphData} />
             </div>
           </div>
 
           {/* Bottom Section: Table of Contents */}
           <div className="flex-[0.6] min-h-0 flex flex-col gap-2">
-            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20 px-2">Table of Contents</div>
-            <div className="flex-1 rounded-xl border border-white/5 bg-black/10 overflow-hidden flex flex-col min-h-0">
+            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Table of Contents</div>
+            <div className="flex-1 rounded-xl border border-border bg-background/50 overflow-hidden flex flex-col min-h-0">
               <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
                 {toc.length > 0 ? (
                   <div className="space-y-1">
@@ -384,12 +385,12 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
                       <button
                         key={i}
                         onClick={() => scrollToHeading(heading.line)}
-                        className={`w-full text-left px-3 py-2 rounded-md transition-all hover:bg-white/5 group relative flex items-center gap-3 ${
-                          heading.level === 1 ? 'text-white/80' : 'text-white/40 pl-8'
+                        className={`w-full text-left px-3 py-2 rounded-md transition-all hover:bg-accent group relative flex items-center gap-3 ${
+                          heading.level === 1 ? 'text-foreground' : 'text-muted-foreground pl-8'
                         }`}
                       >
                         <div className={`h-1 rounded-full transition-all group-hover:w-2 ${
-                          heading.level === 1 ? 'w-1 bg-primary/40' : 'w-1 bg-white/10'
+                          heading.level === 1 ? 'w-1 bg-primary/40' : 'w-1 bg-border'
                         }`} />
                         <span className={`truncate ${heading.level === 1 ? 'text-xs font-bold' : 'text-[11px] font-medium'}`}>
                           {heading.text}
@@ -399,7 +400,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
                   </div>
                 ) : (
                   <div className="h-full flex items-center justify-center">
-                    <span className="text-[10px] text-white/10 uppercase tracking-widest italic">No headings found</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest italic">No headings found</span>
                   </div>
                 )}
               </div>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
   ssr: false,
@@ -34,6 +35,7 @@ interface MiniGraphViewProps {
 
 export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniGraphViewProps) {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
@@ -105,17 +107,19 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
 
   if (!mounted) return null;
 
+  const isDark = resolvedTheme === 'dark';
+
   return (
-    <div className="w-full h-64 bg-[#080808] rounded-xl overflow-hidden border border-white/5 relative flex flex-col">
+    <div className="w-full h-64 bg-background rounded-xl overflow-hidden border border-border relative flex flex-col">
       <div className="absolute top-2 left-3 z-10">
-        <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Local Graph</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Local Graph</span>
       </div>
       <div className="flex-1">
         <ForceGraph2D
           graphData={localGraphData}
           nodeLabel="title"
-          backgroundColor="#080808"
-          linkColor={() => 'rgba(255, 255, 255, 0.15)'}
+          backgroundColor={isDark ? '#080808' : '#ffffff'}
+          linkColor={() => isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
           linkWidth={1}
           nodeRelSize={4}
           width={320}
@@ -141,7 +145,7 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
 
             // Label
             if (globalScale > 1.2 || isCurrent) {
-              ctx.fillStyle = 'rgba(15, 15, 15, 0.8)';
+              ctx.fillStyle = isDark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(255, 255, 255, 0.9)';
               ctx.roundRect(
                 node.x - bckgDimensions[0] / 2, 
                 node.y + 5, 
@@ -153,7 +157,7 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
 
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
-              ctx.fillStyle = node.type === 'tag' ? '#d8b4fe' : (isCurrent ? '#34d399' : 'rgba(255, 255, 255, 0.8)');
+              ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (isCurrent ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)'));
               ctx.fillText(label, node.x, node.y + 6);
             }
           }}
