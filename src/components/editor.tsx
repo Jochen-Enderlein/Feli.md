@@ -25,7 +25,7 @@ import {
   FileDown
 } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, prism } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import { ExcalidrawEditor } from './excalidraw-editor';
 import { ExcalidrawEmbed } from './excalidraw-embed';
@@ -377,17 +377,25 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
                               {String(children).replace(/\n$/, '')}
                             </SyntaxHighlighter>
                             <SyntaxHighlighter
-                              style={vs as any}
+                              style={prism as any}
                               language={match ? match[1] : 'typescript'}
                               PreTag="div"
-                              customStyle={{ backgroundColor: '#f5f5f5', padding: '1em', margin: '1em 0', border: '1px solid #ddd' }}
-                              className="hidden print:block text-[12px]"
+                              customStyle={{ 
+                                backgroundColor: '#f8f9fa', 
+                                padding: '12px', 
+                                margin: '1em 0', 
+                                border: '1px solid #e1e4e8',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                lineHeight: '1.5'
+                              }}
+                              className="hidden print:block"
                             >
                               {String(children).replace(/\n$/, '')}
                             </SyntaxHighlighter>
                           </div>
                         ) : (
-                          <code className="bg-white/10 px-1.5 py-0.5 rounded-md text-[0.9em] font-mono text-primary/90 print:bg-gray-100 print:text-[#c7254e] print:border print:border-gray-200" {...props}>
+                          <code className="bg-white/10 px-1.5 py-0.5 rounded-md text-[0.9em] font-mono text-primary/90 print:bg-[#f3f4f6] print:text-[#eb5757] print:border print:border-[#e1e4e8] print:px-1 print:py-0" {...props}>
                             {children}
                           </code>
                         );

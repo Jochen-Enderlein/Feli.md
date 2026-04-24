@@ -94,16 +94,21 @@ ipcMain.handle('save-note-as-pdf', async (event, title) => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const options = {
-      margins: {
-        top: 10,
-        bottom: 10,
-        left: 10,
-        right: 10
-      },
-      pageSize: 'A4',
       printBackground: true,
-      displayHeaderFooter: false,
-      preferCSSPageSize: true
+      displayHeaderFooter: true,
+      headerTemplate: `
+        <div style="font-size: 9px; width: 100%; margin: 0 1cm; display: flex; justify-content: space-between; font-family: sans-serif; color: #888;">
+          <span>Skriva</span>
+          <span>${title || 'Note'}</span>
+        </div>`,
+      footerTemplate: `
+        <div style="font-size: 9px; width: 100%; margin: 0 1cm; display: flex; justify-content: flex-end; font-family: sans-serif; color: #888;">
+          <span>Seite <span class="pageNumber"></span> von <span class="totalPages"></span></span>
+        </div>`,
+      pageSize: 'A4',
+      margins: {
+        marginType: 'default' // This makes it look like the web version
+      }
     };
 
     const data = await mainWindow.webContents.printToPDF(options);

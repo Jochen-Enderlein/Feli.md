@@ -444,10 +444,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
 
       <div className="flex h-screen w-full overflow-hidden bg-background text-foreground font-sans">
         <SidebarUI collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-          <SidebarHeader className="border-b border-sidebar-border h-12 flex flex-row items-center px-4 justify-between">
-            <div className="flex items-center gap-2 font-bold tracking-tight group-data-[collapsible=icon]:hidden">
-              <span className="text-[10px] tracking-[0.3em] opacity-80 uppercase text-sidebar-foreground">Skriva</span>
-            </div>
+          <SidebarHeader className="border-b border-sidebar-border h-12 flex flex-row items-center px-4 justify-end">
             <div className="flex items-center gap-0.5">
               <SidebarMenuButton size="sm" onClick={() => setDialog({ type: 'create-note', parentFolder: '' })} tooltip="New Note">
                 <Plus className="h-4 w-4" />
