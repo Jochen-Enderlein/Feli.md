@@ -79,3 +79,38 @@ ipcMain.handle('select-folder', async () => {
   if (result.canceled) return null;
   return result.filePaths[0];
 });
+
+ipcMain.handle('save-note-as-pdf', async (event, title) => {
+  try {
+    const pdfPath = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export to PDF',
+      defaultPath: `${title || 'note'}.pdf`,
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+    });
+
+    if (pdfPath.canceled) return false;
+
+    // Wait long enough for Excalidraw and syntax highlighting to re-render in print mode
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const options = {
+      margins: {
+        top: 10,
+        bottom: 10,
+        left: 10,
+        right: 10
+      },
+      pageSize: 'A4',
+      printBackground: true,
+      displayHeaderFooter: false,
+      preferCSSPageSize: true
+    };
+
+    const data = await mainWindow.webContents.printToPDF(options);
+    fs.writeFileSync(pdfPath.filePath, data);
+    return true;
+  } catch (error) {
+    console.error('Failed to export PDF:', error);
+    return false;
+  }
+});

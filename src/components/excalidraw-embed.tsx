@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { getNoteContentAction } from '@/app/actions';
+import { useTheme } from 'next-themes';
 
 const Excalidraw = dynamic(
   () => import('@excalidraw/excalidraw').then((mod) => mod.Excalidraw),
@@ -16,20 +17,50 @@ interface ExcalidrawEmbedProps {
 export function ExcalidrawEmbed({ slug }: ExcalidrawEmbedProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [svgUrl, setSvgUrl] = useState<string | null>(null);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
-    async function fetchContent() {
+    let isMounted = true;
+
+    async function fetchAndProcess() {
       const result = await getNoteContentAction(slug);
+      if (!isMounted) return;
+
       if (result.success && result.content) {
         try {
-          setData(JSON.parse(result.content));
+          const parsedData = JSON.parse(result.content);
+          setData(parsedData);
+          
+          // Dynamically import exportToSvg and generate SVG
+          const { exportToSvg } = await import('@excalidraw/excalidraw');
+          
+          if (exportToSvg && parsedData.elements && isMounted) {
+            const svg = await exportToSvg({
+              elements: parsedData.elements,
+              appState: {
+                ...parsedData.appState,
+                exportWithBlur: false,
+                exportBackground: true,
+                viewBackgroundColor: '#ffffff'
+              },
+              files: parsedData.files,
+              exportPadding: 10,
+            });
+            
+            const svgString = new XMLSerializer().serializeToString(svg);
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            setSvgUrl(URL.createObjectURL(blob));
+          }
         } catch (e) {
-          console.error('Failed to parse excalidraw data', e);
+          console.error('Failed to process excalidraw data', e);
         }
       }
       setLoading(false);
     }
-    fetchContent();
+
+    fetchAndProcess();
+    return () => { isMounted = false; };
   }, [slug]);
 
   if (loading) {
@@ -49,21 +80,37 @@ export function ExcalidrawEmbed({ slug }: ExcalidrawEmbedProps) {
   }
 
   return (
-    <div className="relative group my-4 border-l-4 border-primary/40 pl-4 h-[400px] bg-white rounded-xl overflow-hidden border border-white/10">
-      <Excalidraw
-        initialData={{
-          elements: data.elements || [],
-          appState: { 
-            ...data.appState,
-            viewModeEnabled: true,
-            zenModeEnabled: true,
-          },
-          files: data.files || {},
-        }}
-        viewModeEnabled={true}
-        theme="dark"
-      />
-      <div className="absolute bottom-2 right-2 pointer-events-none z-10">
+    <div className="relative group my-4 border-l-4 border-primary/40 pl-4 h-[400px] bg-background rounded-xl overflow-hidden border border-border print:border-none print:pl-0 print:h-auto print:min-h-0">
+      {/* Live version for app */}
+      <div className="w-full h-full no-print">
+        <Excalidraw
+          initialData={{
+            elements: data.elements || [],
+            appState: { 
+              ...data.appState,
+              viewModeEnabled: true,
+              zenModeEnabled: true,
+              viewBackgroundColor: 'transparent'
+            },
+            files: data.files || {},
+          }}
+          viewModeEnabled={true}
+          theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        />
+      </div>
+
+      {/* Static SVG for PDF export */}
+      {svgUrl && (
+        <div className="hidden print:block w-full">
+          <img 
+            src={svgUrl} 
+            alt="Excalidraw Diagram" 
+            className="w-full h-auto max-h-[800px] object-contain"
+          />
+        </div>
+      )}
+
+      <div className="absolute bottom-2 right-2 pointer-events-none z-10 no-print">
         <span className="text-[10px] bg-black/50 px-2 py-1 rounded text-white/40 font-medium tracking-wider uppercase backdrop-blur-sm">Excalidraw Drawing</span>
       </div>
     </div>

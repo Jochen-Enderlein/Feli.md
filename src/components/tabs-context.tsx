@@ -13,12 +13,15 @@ interface TabsContextType {
   activeTab: string | null;
   openTab: (tab: Tab) => void;
   closeTab: (slug: string) => void;
+  isGraphOpen: boolean;
+  setIsGraphOpen: (open: boolean) => void;
 }
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined);
 
 export function TabsProvider({ children }: { children: React.ReactNode }) {
   const [tabs, setTabs] = useState<Tab[]>([]);
+  const [isGraphOpen, setIsGraphOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -29,22 +32,28 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const closeTab = (slug: string) => {
+    const tabIndex = tabs.findIndex(t => t.slug === slug);
     const newTabs = tabs.filter(t => t.slug !== slug);
     setTabs(newTabs);
     
-    if (pathname === `/note/${slug}`) {
+    // Normalize path for comparison (decode %20 etc)
+    const currentSlug = decodeURIComponent(pathname.replace('/note/', ''));
+    const closingSlug = decodeURIComponent(slug);
+
+    if (pathname.startsWith('/note/') && currentSlug === closingSlug) {
       if (newTabs.length > 0) {
-        router.push(`/note/${newTabs[newTabs.length - 1].slug}`);
+        const nextTab = newTabs[tabIndex] || newTabs[newTabs.length - 1];
+        router.push(`/note/${nextTab.slug}`);
       } else {
         router.push('/');
       }
     }
   };
 
-  const activeTab = pathname.startsWith('/note/') ? pathname.replace('/note/', '') : null;
+  const activeTab = pathname.startsWith('/note/') ? decodeURIComponent(pathname.replace('/note/', '')) : null;
 
   return (
-    <TabsContext.Provider value={{ tabs, activeTab, openTab, closeTab }}>
+    <TabsContext.Provider value={{ tabs, activeTab, openTab, closeTab, isGraphOpen, setIsGraphOpen }}>
       {children}
     </TabsContext.Provider>
   );

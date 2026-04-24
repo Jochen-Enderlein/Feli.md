@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { X, FileText } from 'lucide-react';
+import { X, FileText, Pencil } from 'lucide-react';
 import { useTabs } from './tabs-context';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +24,12 @@ export function TabList() {
           )}
         >
           <Link href={`/note/${tab.slug}`} className="flex-1 flex items-center gap-2 truncate pr-4">
-            <span className="truncate">{tab.title}</span>
+            {tab.slug.toLowerCase().endsWith('.excalidraw') ? (
+              <Pencil className="h-3.5 w-3.5 opacity-50" />
+            ) : (
+              <FileText className="h-3.5 w-3.5 opacity-50" />
+            )}
+            <span className="truncate">{tab.title.replace(/\.(md|excalidraw)$/i, '')}</span>
           </Link>
           <button
             onClick={(e) => {

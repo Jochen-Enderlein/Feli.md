@@ -32,7 +32,6 @@ import {
   ChevronDown,
   Folder,
   Search,
-  Settings,
   Library
 } from "lucide-react";
 import Link from "next/link";
@@ -67,6 +66,8 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ThemeToggle } from "./theme-toggle";
 import { useDebounce } from '@/hooks/use-debounce';
+import { useTabs } from "./tabs-context";
+import { cn } from "@/lib/utils";
 
 interface LayoutWrapperProps {
   notes: NoteMetadata[];
@@ -99,6 +100,7 @@ declare global {
       selectFolder: () => Promise<string | null>;
       getVaultPath: () => Promise<string | null>;
       setVaultPath: (path: string) => Promise<boolean>;
+      saveNoteAsPdf: (title: string) => Promise<boolean>;
     };
   }
 }
@@ -106,6 +108,7 @@ declare global {
 export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isGraphOpen, setIsGraphOpen } = useTabs();
   const [dialog, setDialog] = React.useState<DialogState>({ type: null });
   const [inputValue, setInputValue] = React.useState('');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -443,7 +446,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
         <SidebarUI collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
           <SidebarHeader className="border-b border-sidebar-border h-12 flex flex-row items-center px-4 justify-between">
             <div className="flex items-center gap-2 font-bold tracking-tight group-data-[collapsible=icon]:hidden">
-              <span className="text-[10px] tracking-[0.3em] opacity-80 uppercase">Skriva</span>
+              <span className="text-[10px] tracking-[0.3em] opacity-80 uppercase text-sidebar-foreground">Skriva</span>
             </div>
             <div className="flex items-center gap-0.5">
               <SidebarMenuButton size="sm" onClick={() => setDialog({ type: 'create-note', parentFolder: '' })} tooltip="New Note">
@@ -463,7 +466,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
           <div className="px-3 py-2 group-data-[collapsible=icon]:hidden">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring/20" />
+              <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring" />
             </div>
           </div>
           <SidebarContent className="no-scrollbar overflow-x-auto">
@@ -523,7 +526,8 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               </span>
             </div>
             <div className="h-4 w-px bg-border mx-1" />
-            <div className="flex items-center gap-0.5">
+            
+            <div className="flex items-center gap-0.5 pr-2 border-r border-border">
               <ThemeToggle />
               <Link href="/tags">
                 <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity text-foreground">
@@ -536,8 +540,26 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                 </Button>
               </Link>
             </div>
-            <div className="h-4 w-px bg-border mx-2" />
-            <TabList />
+
+            <div className="flex-1 flex items-center min-w-0">
+              <TabList />
+            </div>
+            
+            {/* Graph Toggle on the right side of tab bar */}
+            <div className="ml-auto flex items-center pl-2 border-l border-border">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsGraphOpen(!isGraphOpen)}
+                className={cn(
+                  "h-8 w-8 transition-all",
+                  isGraphOpen ? "bg-primary/20 text-primary shadow-[0_0_10px_rgba(var(--primary),0.2)]" : "text-muted-foreground hover:text-foreground"
+                )}
+                title={isGraphOpen ? "Hide Local Graph" : "Show Local Graph"}
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+            </div>
           </header>
           <main className="flex-1 overflow-hidden">{children}</main>
         </div>

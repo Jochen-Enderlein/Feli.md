@@ -21,10 +21,11 @@ import {
   List as ListIcon, 
   Code, 
   Table as TableIcon,
-  Share2
+  Share2,
+  FileDown
 } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import { ExcalidrawEditor } from './excalidraw-editor';
 import { ExcalidrawEmbed } from './excalidraw-embed';
@@ -35,6 +36,7 @@ import { languages } from '@codemirror/language-data';
 import { EditorView } from '@codemirror/view';
 import { blockIconGutter, autocompleteExtensions } from '@/lib/editor/cm-extensions';
 import { MiniGraphView } from './mini-graph-view';
+import { cn } from '@/lib/utils';
 
 interface EditorProps {
   slug: string;
@@ -48,9 +50,8 @@ interface EditorProps {
 export function Editor({ slug, initialContent, allNotes, graphData, backlinks: initialBacklinks, allTags }: EditorProps) {
   const [content, setContent] = useState(initialContent);
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const { isGraphOpen, setIsGraphOpen, openTab } = useTabs();
   const debouncedContent = useDebounce(content, 750);
-  const { openTab } = useTabs();
   const codeMirrorRef = useRef<ReactCodeMirrorRef>(null);
 
   useEffect(() => {
@@ -119,9 +120,10 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     processed = processed.replace(/__CODE_BLOCK_(\d+)__/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
     return processed;
-  }, [content]);
+  }, [content, slug]);
 
   const insertFormat = (prefix: string, suffix: string = '') => {
+    if (isReadOnly) return;
     const view = codeMirrorRef.current?.view;
     if (!view) return;
 
@@ -175,7 +177,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
   const BacklinksSection = () => {
     if (!initialBacklinks || initialBacklinks.length === 0) return null;
     return (
-      <div className="mt-16 pt-8 border-t border-border">
+      <div className="mt-16 pt-8 border-t border-border no-print">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
           {initialBacklinks.length} {initialBacklinks.length === 1 ? 'mention' : 'mentions'} in other notes
         </h3>
@@ -237,14 +239,58 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     view.focus();
   };
 
+  const handleExportPdf = async () => {
+    const title = decodeURIComponent(slug).split('/').pop()?.replace(/\.(md|excalidraw)$/i, '') || 'note';
+    
+    // Switch to read mode for better print layout if not already
+    const wasReadOnly = isReadOnly;
+    if (!wasReadOnly) setIsReadOnly(true);
+
+    // Give it a moment to switch UI and render Excalidraw properly
+    setTimeout(async () => {
+      if (typeof window !== 'undefined' && (window as any).electron) {
+        // Desktop: Use Electron API
+        toast.info("Preparing PDF...");
+        const success = await (window as any).electron.saveNoteAsPdf(title);
+        if (success) {
+          toast.success("PDF exported successfully");
+        } else {
+          toast.error("Failed to export PDF");
+        }
+      } else {
+        // Web: Use browser print dialog
+        window.print();
+      }
+      
+      // Switch back if needed
+      if (!wasReadOnly) setIsReadOnly(false);
+    }, 500);
+  };
+
+  const FormatButton = ({ onClick, icon: Icon, title }: { onClick: () => void, icon: any, title: string }) => (
+    <button 
+      disabled={isReadOnly}
+      onClick={onClick} 
+      className={cn(
+        "p-1 rounded transition-all",
+        isReadOnly 
+          ? "opacity-20 cursor-not-allowed" 
+          : "hover:bg-accent text-foreground active:scale-95"
+      )}
+      title={isReadOnly ? "Editor is in view mode" : title}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+
   return (
     <div className="relative w-full h-full flex flex-col xl:flex-row overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Fixed Toolbar Container */}
-        <div className="flex-none flex flex-col items-center pt-4 z-30 mb-6">
+        <div className="flex-none flex flex-col items-center pt-4 z-30 mb-6 no-print">
           <div className="flex items-center gap-4 bg-popover/80 backdrop-blur-xl border border-border p-1.5 rounded-full shadow-2xl transition-all">
             {!isExcalidraw && (
-              <div className="flex items-center gap-2 px-3 border-r border-white/10 mr-1">
+              <div className="flex items-center gap-2 px-3 border-r border-border mr-1">
                 <Switch 
                   id="read-mode" 
                   checked={isReadOnly} 
@@ -257,42 +303,48 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
             )}
             
             <div className="flex items-center gap-1 pr-2">
-              {!isReadOnly && (
+              {!isExcalidraw ? (
                 <>
-                  <button onClick={() => insertFormat('# ')} className="p-1 hover:bg-accent rounded text-foreground" title="Heading 1"><Heading1 className="w-4 h-4" /></button>
-                  <button onClick={() => insertFormat('## ')} className="p-1 hover:bg-accent rounded text-foreground" title="Heading 2"><Heading2 className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
-                  <button onClick={() => insertFormat('**', '**')} className="p-1 hover:bg-accent rounded text-foreground" title="Bold"><Bold className="w-4 h-4" /></button>
-                  <button onClick={() => insertFormat('*', '*')} className="p-1 hover:bg-accent rounded text-foreground" title="Italic"><Italic className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
-                  <button onClick={() => insertFormat('- ')} className="p-1 hover:bg-accent rounded text-foreground" title="Bullet List"><ListIcon className="w-4 h-4" /></button>
-                  <button onClick={() => insertFormat('```\n', '\n```')} className="p-1 hover:bg-accent rounded text-foreground" title="Code Block"><Code className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
-                  <button onClick={() => insertFormat('\n| Header | Header | Header |\n|--------|--------|--------|\n| Cell   | Cell   | Cell   |\n')} className="p-1 hover:bg-accent rounded text-foreground" title="Insert Table"><TableIcon className="w-4 h-4" /></button>
-                  <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
+                  <FormatButton onClick={() => insertFormat('# ')} icon={Heading1} title="Heading 1" />
+                  <FormatButton onClick={() => insertFormat('## ')} icon={Heading2} title="Heading 2" />
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border opacity-50" />
+                  <FormatButton onClick={() => insertFormat('**', '**')} icon={Bold} title="Bold" />
+                  <FormatButton onClick={() => insertFormat('*', '*')} icon={Italic} title="Italic" />
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border opacity-50" />
+                  <FormatButton onClick={() => insertFormat('- ')} icon={ListIcon} title="Bullet List" />
+                  <FormatButton onClick={() => insertFormat('```\n', '\n```')} icon={Code} title="Code Block" />
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border opacity-50" />
+                  <FormatButton 
+                    onClick={() => insertFormat('\n| Header | Header | Header |\n|--------|--------|--------|\n| Cell   | Cell   | Cell   |\n')} 
+                    icon={TableIcon} 
+                    title="Insert Table" 
+                  />
+                  <Separator orientation="vertical" className="mx-1 h-4 bg-border opacity-50" />
                 </>
+              ) : (
+                <div className="px-3 text-[10px] uppercase tracking-widest font-bold opacity-50 select-none border-r border-border mr-2">
+                  Excalidraw
+                </div>
               )}
-
-              {/* Graph Panel Toggle */}
               <button 
-                onClick={() => setIsGraphOpen(!isGraphOpen)}
-                className={`p-1.5 rounded-full transition-all ${isGraphOpen ? 'bg-primary/20 text-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-foreground/70 hover:bg-accent hover:text-foreground'}`}
-                title={isGraphOpen ? "Hide Graph" : "Show Graph"}
+                onClick={handleExportPdf}
+                className="p-1 hover:bg-accent rounded text-foreground active:scale-95 transition-all"
+                title="Export as PDF"
               >
-                <Share2 className="w-4 h-4" />
+                <FileDown className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
-          <div className={`mx-auto w-full ${isExcalidraw ? 'max-w-none px-4 pb-4' : 'max-w-4xl px-6 py-12 pt-0'}`}>
+        <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth print:overflow-visible">
+          <div className={`mx-auto w-full print-content ${isExcalidraw ? 'max-w-none px-4 pb-4 print:p-0' : 'max-w-4xl px-6 py-12 pt-0 print:p-0'}`}>
             <div className="w-full h-full relative">
               {isExcalidraw ? (
                 <ExcalidrawEditor key={slug} slug={slug} initialContent={initialContent} />
               ) : isReadOnly ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
+                <div className="prose prose-sm dark:prose-invert max-w-none print:prose-headings:text-black print:prose-p:text-black">
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeRaw]}
@@ -314,17 +366,28 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
                         const match = /language-(\w+)/.exec(className || '');
                         const isBlock = match || String(children).includes('\n');
                         return isBlock ? (
-                          <SyntaxHighlighter
-                            style={vscDarkPlus as any}
-                            language={match ? match[1] : 'typescript'}
-                            PreTag="div"
-                            customStyle={{ backgroundColor: 'transparent', padding: 0, margin: '1em 0' }}
-                            className="!bg-transparent text-[13px]"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
+                          <div className="relative group">
+                            <SyntaxHighlighter
+                              style={vscDarkPlus as any}
+                              language={match ? match[1] : 'typescript'}
+                              PreTag="div"
+                              customStyle={{ backgroundColor: 'transparent', padding: 0, margin: '1em 0' }}
+                              className="!bg-transparent text-[13px] no-print"
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                            <SyntaxHighlighter
+                              style={vs as any}
+                              language={match ? match[1] : 'typescript'}
+                              PreTag="div"
+                              customStyle={{ backgroundColor: '#f5f5f5', padding: '1em', margin: '1em 0', border: '1px solid #ddd' }}
+                              className="hidden print:block text-[12px]"
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          </div>
                         ) : (
-                          <code className="bg-white/10 px-1.5 py-0.5 rounded-md text-[0.9em] font-mono text-primary/90" {...props}>
+                          <code className="bg-white/10 px-1.5 py-0.5 rounded-md text-[0.9em] font-mono text-primary/90 print:bg-gray-100 print:text-[#c7254e] print:border print:border-gray-200" {...props}>
                             {children}
                           </code>
                         );
@@ -361,7 +424,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
 
       {/* Collapsible Side Panel (Graph + ToC) */}
       <div 
-        className={`hidden xl:block transition-all duration-300 ease-in-out border-l border-border bg-background/50 backdrop-blur-sm overflow-hidden h-full ${
+        className={`hidden xl:block transition-all duration-300 ease-in-out border-l border-border bg-background/50 backdrop-blur-sm overflow-hidden h-full no-print ${
           isGraphOpen ? 'w-[400px] opacity-100' : 'w-0 opacity-0 border-l-0'
         }`}
       >

@@ -256,10 +256,133 @@
   border: none;
 }
 
-.wiki-link {
-  background-color: oklch(0.7 0.1 250 / 0.1);
-  padding: 0 2px;
-  border-radius: 2px;
+/* PRINT STYLES */
+@media print {
+  @page {
+    margin: 20mm;
+    size: A4;
+  }
+
+  :root {
+    --background: white !important;
+    --foreground: black !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide UI elements */
+  header, 
+  aside, 
+  nav,
+  [data-slot="sidebar"],
+  [data-slot="sidebar-header"],
+  [data-slot="sidebar-content"],
+  [data-slot="sidebar-rail"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-gap"],
+  .sidebar-trigger,
+  button,
+  .tabs-bar,
+  .no-print,
+  .tippy-box,
+  [role="dialog"],
+  .sonner-toast,
+  .fixed,
+  .absolute.no-print {
+    display: none !important;
+  }
+
+  /* Force parent containers of main to be visible and take full space */
+  [data-slot="sidebar-wrapper"],
+  .flex.h-screen,
+  .flex.flex-1.flex-col {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  /* Force content area to be full width */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    background: white !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    display: block !important;
+  }
+
+  /* Ensure the editor container doesn't restrict height or show scrollbars */
+  .flex-1.overflow-y-auto {
+    overflow: visible !important;
+    height: auto !important;
+    display: block !important;
+  }
+
+  .prose {
+    max-width: none !important;
+    color: black !important;
+    background: white !important;
+  }
+
+  .prose :where(h1, h2, h3, p, li) {
+    color: black !important;
+  }
+
+  /* Refined Code Block Styling for PDF */
+  .prose pre {
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    color: black !important;
+    padding: 1rem !important;
+    border-radius: 4px !important;
+    white-space: pre-wrap !important;
+    overflow: visible !important;
+  }
+
+  .prose code {
+    background: #f0f0f0 !important;
+    color: #c7254e !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+    border: 1px solid #ddd !important;
+    font-size: 0.9em !important;
+  }
+
+  /* Ensure syntax highlighter colors are visible on light background */
+  .print-content pre span {
+    color: inherit !important;
+    text-shadow: none !important;
+  }
+
+  /* Ensure Excalidraw is visible and properly themed for print */
+  .excalidraw-transclusion {
+    break-inside: avoid;
+    margin: 20px 0;
+    background: white !important;
+    border: 1px solid #eee !important;
+  }
+
+  .excalidraw-transclusion .excalidraw {
+    background: white !important;
+  }
+
+  /* Force dark elements to light for printing */
+  .dark {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide scrollbars during print */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
 }
 
 /* CodeMirror Autocomplete - Shadcn Style */
