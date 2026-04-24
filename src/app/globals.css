@@ -230,13 +230,18 @@
 
 /* Default Table Styling */
 .prose table {
-  @apply w-full border-collapse border border-white/10 my-2 transition-all;
+  @apply w-full border-collapse border border-border my-6 transition-all;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 .prose th, .prose td {
-  @apply border border-white/10 p-1.5 text-left text-sm transition-all;
+  @apply border border-border p-3 text-left text-sm transition-all;
 }
 .prose th {
-  @apply bg-white/5 font-bold;
+  @apply bg-muted/50 font-bold text-foreground;
+}
+.prose tr:hover td {
+  @apply bg-muted/30;
 }
 
 /* Code Block Styling */

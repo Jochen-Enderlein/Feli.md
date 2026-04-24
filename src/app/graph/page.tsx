@@ -13,7 +13,6 @@ export default async function GraphPage() {
     <LayoutWrapper notes={notes} folders={folders}>
       <div className="h-full flex flex-col">
         <div className="p-4 border-b flex justify-between items-center bg-background">
-          <h2 className="text-xl font-semibold">Graph View</h2>
         </div>
         <div className="flex-1 p-4">
           <GraphView data={graphData} />

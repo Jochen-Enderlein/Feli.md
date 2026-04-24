@@ -47,16 +47,32 @@ export function GraphView({ data }: GraphViewProps) {
     if (!filter) return data;
     
     const lowerFilter = filter.toLowerCase();
-    const filteredNodes = data.nodes.filter(node => 
+    
+    // 1. Find nodes that directly match the filter
+    const directMatchNodes = data.nodes.filter(node => 
       node.title.toLowerCase().includes(lowerFilter)
     );
-    const nodeIds = new Set(filteredNodes.map(n => n.id));
-    const filteredLinks = data.links.filter(link => 
-      nodeIds.has(typeof link.source === 'string' ? link.source : (link.source as any).id) && 
-      nodeIds.has(typeof link.target === 'string' ? link.target : (link.target as any).id)
-    );
+    
+    const directMatchIds = new Set(directMatchNodes.map(n => n.id));
+    const finalNodeIds = new Set(directMatchIds);
+    const finalLinks: Link[] = [];
 
-    return { nodes: filteredNodes, links: filteredLinks };
+    // 2. Find links connected to direct matches and collect neighbor IDs
+    data.links.forEach(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
+      const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+      
+      if (directMatchIds.has(sourceId) || directMatchIds.has(targetId)) {
+        finalLinks.push(link);
+        finalNodeIds.add(sourceId);
+        finalNodeIds.add(targetId);
+      }
+    });
+
+    // 3. Filter the full node list to get our expanded set
+    const finalNodes = data.nodes.filter(node => finalNodeIds.has(node.id));
+
+    return { nodes: finalNodes, links: finalLinks };
   }, [data, filter]);
 
   if (!mounted) return null;

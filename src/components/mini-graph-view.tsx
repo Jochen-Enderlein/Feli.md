@@ -75,7 +75,7 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
       const tagName = tagMatch[1];
       const tagId = `tag:${tagName}`;
       if (!nodesMap.has(tagId)) {
-        nodesMap.set(tagId, { id: tagId, title: `#${tagName}`, type: 'tag' });
+        nodesMap.set(tagId, { id: tagId, title: ``, type: 'tag' });
       }
       tags.push({ source: currentSlug, target: tagId });
     }
@@ -110,10 +110,7 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
   const isDark = resolvedTheme === 'dark';
 
   return (
-    <div className="w-full h-64 bg-background rounded-xl overflow-hidden border border-border relative flex flex-col">
-      <div className="absolute top-2 left-3 z-10">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Local Graph</span>
-      </div>
+    <div className="w-full h-64 bg-background  overflow-hidden  relative flex flex-col">
       <div className="flex-1">
         <ForceGraph2D
           graphData={localGraphData}

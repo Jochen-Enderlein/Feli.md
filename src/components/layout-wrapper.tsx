@@ -496,7 +496,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
       </Dialog>
 
       <div className="flex h-screen w-full overflow-hidden bg-background text-foreground font-sans">
-        <SidebarUI collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+        <SidebarUI collapsible="offcanvas" className="bg-sidebar">
           <SidebarHeader className="border-b border-sidebar-border h-12 flex flex-row items-center px-4 justify-end">
             <div className="flex items-center gap-0.5">
               <SidebarMenuButton size="sm" onClick={() => setDialog({ type: 'create-note', parentFolder: '' })} tooltip="New Note">
@@ -513,7 +513,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               </SidebarMenuButton>
             </div>
           </SidebarHeader>
-          <div className="px-3 py-2 group-data-[collapsible=icon]:hidden">
+          <div className="px-3 py-2 group-data-[state=collapsed]:hidden">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring" />
@@ -564,7 +564,6 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               </SidebarGroup>
             </div>
           </SidebarContent>
-          <SidebarRail />
         </SidebarUI>
 
         <div className="flex flex-1 flex-col overflow-hidden bg-background">
