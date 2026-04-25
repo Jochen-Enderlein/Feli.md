@@ -12,7 +12,7 @@ const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
 interface Node {
   id: string;
   title: string;
-  type: 'note' | 'tag';
+  type: 'note' | 'tag' | 'mention';
   x?: number;
   y?: number;
 }
@@ -75,9 +75,21 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
       const tagName = tagMatch[1];
       const tagId = `tag:${tagName}`;
       if (!nodesMap.has(tagId)) {
-        nodesMap.set(tagId, { id: tagId, title: ``, type: 'tag' });
+        nodesMap.set(tagId, { id: tagId, title: `#${tagName}`, type: 'tag' });
       }
       tags.push({ source: currentSlug, target: tagId });
+    }
+
+    // Mentions @mention
+    const mentionRegex = /(?:^|\s)@([a-zA-Z0-9_]+)/g;
+    let mentionMatch;
+    while ((mentionMatch = mentionRegex.exec(currentContent)) !== null) {
+      const mentionName = mentionMatch[1];
+      const mentionId = `mention:${mentionName}`;
+      if (!nodesMap.has(mentionId)) {
+        nodesMap.set(mentionId, { id: mentionId, title: `@${mentionName}`, type: 'mention' });
+      }
+      tags.push({ source: currentSlug, target: mentionId });
     }
 
     // Collect all relevant node IDs
@@ -136,8 +148,8 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
 
             // Draw node circle
             ctx.beginPath();
-            ctx.arc(node.x, node.y, node.type === 'tag' ? 2 : (isCurrent ? 4 : 3), 0, 2 * Math.PI, false);
-            ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (isCurrent ? '#10b981' : '#3b82f6');
+            ctx.arc(node.x, node.y, node.type === 'tag' || node.type === 'mention' ? 2 : (isCurrent ? 4 : 3), 0, 2 * Math.PI, false);
+            ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (node.type === 'mention' ? '#f59e0b' : (isCurrent ? '#10b981' : '#3b82f6'));
             ctx.fill();
 
             // Label
@@ -154,7 +166,7 @@ export function MiniGraphView({ currentSlug, currentContent, globalData }: MiniG
 
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
-              ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (isCurrent ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)'));
+              ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (node.type === 'mention' ? '#f59e0b' : (isCurrent ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)')));
               ctx.fillText(label, node.x, node.y + 6);
             }
           }}

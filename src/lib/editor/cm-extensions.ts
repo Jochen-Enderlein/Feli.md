@@ -79,9 +79,36 @@ const slashCommands = [
   { label: "/table", displayLabel: "Table", type: "keyword", apply: "\n| Header | Header |\n|--------|--------|\n| Cell   | Cell   |\n", detail: "Markdown table" }
 ];
 
-export const autocompleteExtensions = (allTags: string[], allNotes: NoteMetadata[]) => {
+export const autocompleteExtensions = (allTags: string[], allMentions: string[], allNotes: NoteMetadata[]) => {
   return autocompletion({
     override: [
+      (context: CompletionContext): CompletionResult | null => {
+        let word = context.matchBefore(/::[a-zA-Z0-9_]*/);
+        if (!word) return null;
+        if (word.from === word.to && !context.explicit) return null;
+
+        return {
+          from: word.from,
+          options: allNotes
+            .filter(n => n.relativeDir === '.templates')
+            .map(tpl => ({
+              label: `::${tpl.title}`,
+              displayLabel: tpl.title,
+              type: "keyword",
+              detail: "template",
+              apply: async (view: EditorView, completion: any, from: number, to: number) => {
+                const { getNoteContentAction } = await import('@/app/actions');
+                const res = await getNoteContentAction(tpl.slug);
+                if (res.success && res.content) {
+                  view.dispatch({
+                    changes: { from, to, insert: res.content },
+                    selection: { anchor: from + res.content.length }
+                  });
+                }
+              }
+            }))
+        };
+      },
       (context: CompletionContext): CompletionResult | null => {
         let word = context.matchBefore(/\/[a-zA-Z0-9-]*/);
         if (!word) return null;
@@ -89,14 +116,14 @@ export const autocompleteExtensions = (allTags: string[], allNotes: NoteMetadata
 
         return {
           from: word.from,
-          options: slashCommands
+          options: slashCommands,
         };
       },
       (context: CompletionContext): CompletionResult | null => {
         let word = context.matchBefore(/#[a-zA-Z0-9_]*/);
         if (!word) return null;
         if (word.from === word.to && !context.explicit) return null;
-        
+
         // Ensure it's typed as a tag, not a heading (heading has space after #)
         const charAfter = context.state.sliceDoc(word.to, word.to + 1);
         if (charAfter === " ") return null;
@@ -109,6 +136,24 @@ export const autocompleteExtensions = (allTags: string[], allNotes: NoteMetadata
               type: "keyword",
               apply: `#${tag} `,
               detail: "tag"
+            }))
+          };
+        }
+        return null;
+      },
+      (context: CompletionContext): CompletionResult | null => {
+        let word = context.matchBefore(/@[a-zA-Z0-9_]*/);
+        if (!word) return null;
+        if (word.from === word.to && !context.explicit) return null;
+
+        if (word.from === 0 || context.state.sliceDoc(word.from - 1, word.from).match(/\s/)) {
+          return {
+            from: word.from,
+            options: Array.from(new Set(allMentions)).map(mention => ({
+              label: `@${mention}`,
+              type: "keyword",
+              apply: `@${mention} `,
+              detail: "person"
             }))
           };
         }

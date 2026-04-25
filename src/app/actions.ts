@@ -9,8 +9,18 @@ import {
   searchNotes,
   getStoredVaultPath,
   setStoredVaultPath,
-  getNoteContent
+  getNoteContent,
+  getTemplates
 } from '@/lib/notes';
+
+export async function getTemplatesAction() {
+  try {
+    const templates = await getTemplates();
+    return { success: true, templates };
+  } catch (error) {
+    return { success: false, error: 'Failed to load templates' };
+  }
+}
 import { revalidatePath } from 'next/cache';
 import fs from 'fs/promises';
 import path from 'path';
@@ -41,20 +51,28 @@ export async function saveNoteAction(slug: string, content: string) {
   }
 }
 
-export async function createNoteAction(title: string, folder: string = '') {
+export async function createNoteAction(title: string, folder: string = '', templateSlug?: string) {
   try {
     const slug = path.join(folder, title);
     const isExcalidraw = title.toLowerCase().endsWith('.excalidraw');
-    const content = isExcalidraw 
-      ? JSON.stringify({
-          type: "excalidraw",
-          version: 2,
-          source: "https://excalidraw.com",
-          elements: [],
-          appState: { viewBackgroundColor: "#121212" },
-          files: {},
-        })
-      : `# ${title}\n\n`;
+    
+    let content = '';
+    
+    if (templateSlug) {
+      content = await getNoteContent(templateSlug);
+    } else {
+      content = isExcalidraw 
+        ? JSON.stringify({
+            type: "excalidraw",
+            version: 2,
+            source: "https://excalidraw.com",
+            elements: [],
+            appState: { viewBackgroundColor: "#121212" },
+            files: {},
+          })
+        : `# ${title}\n\n`;
+    }
+    
     await saveNoteToFs(slug, content);
     revalidatePath('/');
     return { success: true, slug };

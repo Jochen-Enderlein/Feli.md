@@ -21,6 +21,8 @@ declare global {
       getFolders: (dir: string) => Promise<string[]>;
       getGraphData: () => Promise<any>;
       getTags: () => Promise<any[]>;
+      getMentions: () => Promise<any[]>;
+      getTemplates: () => Promise<NoteMetadata[]>;
       getBacklinks: (title: string) => Promise<any[]>;
       searchNotes: (query: string) => Promise<any[]>;
       createFolder: (folderName: string, parentFolder: string) => Promise<boolean>;

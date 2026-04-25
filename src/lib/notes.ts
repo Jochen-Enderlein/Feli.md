@@ -38,10 +38,12 @@ export interface NoteMetadata {
   relativeDir: string;
 }
 
-export async function getNotes(dir: string = ''): Promise<NoteMetadata[]> {
+export async function getNotes(dir: string = '', includeTemplates: boolean = false): Promise<NoteMetadata[]> {
   const notesBase = getNotesPath();
   const fullPath = path.join(notesBase, dir);
   
+  // Ignore .templates folder in normal note listing unless explicitly requested
+  if (!includeTemplates && (dir === '.templates' || dir.startsWith('.templates/'))) return [];
   if (!fssync.existsSync(fullPath)) return [];
 
   try {
@@ -49,9 +51,11 @@ export async function getNotes(dir: string = ''): Promise<NoteMetadata[]> {
     let notes: NoteMetadata[] = [];
 
     for (const entry of entries) {
+      if (!includeTemplates && entry.name === '.templates' && dir === '') continue;
+      
       const relativePath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        const subNotes = await getNotes(relativePath);
+        const subNotes = await getNotes(relativePath, includeTemplates);
         notes = [...notes, ...subNotes];
       } else if (entry.name.endsWith('.md') || entry.name.endsWith('.excalidraw')) {
         const isExcalidraw = entry.name.endsWith('.excalidraw');
@@ -76,6 +80,8 @@ export async function getFolders(dir: string = ''): Promise<string[]> {
   const notesBase = getNotesPath();
   const fullPath = path.join(notesBase, dir);
   
+  // Ignore .templates folder
+  if (dir === '.templates' || dir.startsWith('.templates/')) return [];
   if (!fssync.existsSync(fullPath)) return [];
 
   try {
@@ -83,13 +89,36 @@ export async function getFolders(dir: string = ''): Promise<string[]> {
     let folders: string[] = dir ? [dir] : [];
 
     for (const entry of entries) {
-      if (entry.isDirectory()) {
+      if (entry.isDirectory() && entry.name !== '.templates') {
         const subFolders = await getFolders(path.join(dir, entry.name));
         folders = [...folders, ...subFolders];
       }
     }
     return folders;
   } catch (error) {
+    return [];
+  }
+}
+
+export async function getTemplates(): Promise<NoteMetadata[]> {
+  const notesBase = getNotesPath();
+  const templatesPath = path.join(notesBase, '.templates');
+  
+  try {
+    if (!fssync.existsSync(templatesPath)) {
+      await fs.mkdir(templatesPath, { recursive: true });
+    }
+    
+    const entries = await fs.readdir(templatesPath, { withFileTypes: true });
+    return entries
+      .filter(e => e.isFile() && e.name.endsWith('.md'))
+      .map(e => ({
+        title: e.name.replace(/\.md$/, ''),
+        slug: `.templates/${e.name.replace(/\.md$/, '')}`,
+        path: e.name,
+        relativeDir: '.templates',
+      }));
+  } catch (e) {
     return [];
   }
 }
@@ -216,11 +245,12 @@ export async function getBacklinks(targetTitle: string): Promise<{ title: string
   return backlinks;
 }
 
-export async function getGraphData(): Promise<{ nodes: { id: string; title: string; type: 'note' | 'tag' }[]; links: { source: string; target: string }[] }> {
+export async function getGraphData(): Promise<{ nodes: { id: string; title: string; type: 'note' | 'tag' | 'mention' }[]; links: { source: string; target: string }[] }> {
   const notes = await getNotes();
-  const nodes: { id: string; title: string; type: 'note' | 'tag' }[] = notes.map(n => ({ id: n.slug, title: n.title, type: 'note' }));
+  const nodes: { id: string; title: string; type: 'note' | 'tag' | 'mention' }[] = notes.map(n => ({ id: n.slug, title: n.title, type: 'note' }));
   const links: { source: string; target: string }[] = [];
   const tagsFound = new Set<string>();
+  const mentionsFound = new Set<string>();
 
   for (const note of notes) {
     const content = await getNoteContent(note.slug);
@@ -244,10 +274,23 @@ export async function getGraphData(): Promise<{ nodes: { id: string; title: stri
       tagsFound.add(tagName);
       links.push({ source: note.slug, target: tagId });
     }
+
+    const mentionRegex = /@(\w+)/g;
+    let mentionMatch;
+    while ((mentionMatch = mentionRegex.exec(content)) !== null) {
+      const mentionName = mentionMatch[1];
+      const mentionId = `mention:${mentionName}`;
+      mentionsFound.add(mentionName);
+      links.push({ source: note.slug, target: mentionId });
+    }
   }
 
   tagsFound.forEach(tag => {
     nodes.push({ id: `tag:${tag}`, title: `#${tag}`, type: 'tag' });
+  });
+
+  mentionsFound.forEach(mention => {
+    nodes.push({ id: `mention:${mention}`, title: `@${mention}`, type: 'mention' });
   });
 
   return { nodes, links };
@@ -270,5 +313,25 @@ export async function getTags(): Promise<{ tag: string; count: number }[]> {
 
   return Object.entries(tagCounts)
     .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export async function getMentions(): Promise<{ mention: string; count: number }[]> {
+  const notes = await getNotes();
+  const mentionCounts: Record<string, number> = {};
+
+  for (const note of notes) {
+    const content = await getNoteContent(note.slug);
+    const mentionRegex = /@(\w+)/g;
+    let match;
+    
+    while ((match = mentionRegex.exec(content)) !== null) {
+      const mention = match[1];
+      mentionCounts[mention] = (mentionCounts[mention] || 0) + 1;
+    }
+  }
+
+  return Object.entries(mentionCounts)
+    .map(([mention, count]) => ({ mention, count }))
     .sort((a, b) => b.count - a.count);
 }

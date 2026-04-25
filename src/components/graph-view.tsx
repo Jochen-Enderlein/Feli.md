@@ -14,7 +14,7 @@ const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
 interface Node {
   id: string;
   title: string;
-  type: 'note' | 'tag';
+  type: 'note' | 'tag' | 'mention';
   x?: number;
   y?: number;
 }
@@ -80,7 +80,7 @@ export function GraphView({ data }: GraphViewProps) {
   const isDark = resolvedTheme === 'dark';
 
   return (
-    <div className="w-full h-[calc(100vh-140px)] bg-background rounded-xl overflow-hidden border border-border relative flex flex-col">
+    <div className="w-full flex-1 h-[calc(100vh-140px)] bg-transparent  overflow-hidden relative flex flex-col">
       {/* Local Filter Bar */}
       <div className="absolute top-4 left-4 z-10 w-64 group">
         <div className="relative">
@@ -94,7 +94,7 @@ export function GraphView({ data }: GraphViewProps) {
         </div>
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 w-full">
         <ForceGraph2D
           graphData={filteredData}
           nodeLabel="title"
@@ -118,13 +118,13 @@ export function GraphView({ data }: GraphViewProps) {
 
             // Draw node circle
             ctx.beginPath();
-            ctx.arc(node.x, node.y, node.type === 'tag' ? 3 : 4, 0, 2 * Math.PI, false);
-            ctx.fillStyle = node.type === 'tag' ? '#a855f7' : '#3b82f6';
+            ctx.arc(node.x, node.y, node.type === 'tag' || node.type === 'mention' ? 3 : 4, 0, 2 * Math.PI, false);
+            ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (node.type === 'mention' ? '#f59e0b' : '#3b82f6');
             ctx.fill();
             
             // Add a glow effect
             ctx.shadowBlur = isDark ? 15 : 5;
-            ctx.shadowColor = node.type === 'tag' ? 'rgba(168, 85, 247, 0.4)' : 'rgba(59, 130, 246, 0.4)';
+            ctx.shadowColor = node.type === 'tag' ? 'rgba(168, 85, 247, 0.4)' : (node.type === 'mention' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.4)');
 
             // Draw label text (only if zoom is high enough)
             if (globalScale > 1.5 || filter) {
@@ -141,19 +141,22 @@ export function GraphView({ data }: GraphViewProps) {
 
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
-              ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)');
+              ctx.fillStyle = node.type === 'tag' ? '#a855f7' : (node.type === 'mention' ? '#f59e0b' : (isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)'));
               ctx.fillText(label, node.x, node.y + 7);
             }
           }}
         />
       </div>
 
-      <div className="absolute bottom-4 right-4 flex gap-4 pointer-events-none">
+      <div className="absolute bottom-4 right-4 flex gap-4 pointer-events-none flex-wrap max-w-[calc(100%-2rem)] justify-end">
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-bold bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border">
           <div className="w-2 h-2 rounded-full bg-[#3b82f6]" /> Note
         </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-bold bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border">
           <div className="w-2 h-2 rounded-full bg-[#a855f7]" /> Tag
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-bold bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border">
+          <div className="w-2 h-2 rounded-full bg-[#f59e0b]" /> Mention
         </div>
       </div>
     </div>

@@ -21,6 +21,7 @@ export default function NotePageClient() {
     backlinks: any[];
     graphData: any;
     tags: string[];
+    mentions: string[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -33,24 +34,26 @@ export default function NotePageClient() {
       try {
         const electron = window.electron;
         if (electron) {
-          const [notes, folders, content, graphData, tags, backlinks] = await Promise.all([
-            electron.getNotes(''),
+          const [notes, folders, content, graphData, tags, mentions, backlinks] = await Promise.all([
+            electron.getNotes('', true),
             electron.getFolders(''),
             electron.getNoteContent(slug),
             electron.getGraphData(),
             electron.getTags(),
+            electron.getMentions(),
             electron.getBacklinks(decodeURIComponent(slug).split('/').pop() || '')
           ]);
-          
+
           setData({
             notes,
             folders,
             content,
             graphData,
             tags: tags.map((t: any) => t.tag),
+            mentions: mentions.map((m: any) => m.mention),
             backlinks
           });
-        } else {
+          } else {
           const contentRes = await getNoteContentAction(slug);
           if (contentRes.success) {
             setData({
@@ -59,9 +62,9 @@ export default function NotePageClient() {
               content: contentRes.content || '',
               graphData: { nodes: [], links: [] },
               tags: [],
+              mentions: [],
               backlinks: []
-            });
-          }
+            });          }
         }
       } catch (error) {
         console.error("Failed to load note:", error);
@@ -91,6 +94,7 @@ export default function NotePageClient() {
         graphData={data.graphData} 
         backlinks={data.backlinks} 
         allTags={data.tags}
+        allMentions={data.mentions}
       />
     </LayoutWrapper>
   );

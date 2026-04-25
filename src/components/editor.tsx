@@ -47,9 +47,10 @@ interface EditorProps {
   graphData: any;
   backlinks: any[];
   allTags: string[];
+  allMentions: string[];
 }
 
-export function Editor({ slug, initialContent, allNotes, graphData, backlinks: initialBacklinks, allTags }: EditorProps) {
+export function Editor({ slug, initialContent, allNotes, graphData, backlinks: initialBacklinks, allTags, allMentions }: EditorProps) {
   const isCompact = useMediaQuery("(max-width: 1279px)");
   const [content, setContent] = useState(initialContent);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -117,6 +118,9 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     // Process Hashtags into Chips
     processed = processed.replace(/(^|\s)#([a-zA-Z0-9_]+)/g, '$1<span class="inline-flex items-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/30 cursor-pointer hover:bg-primary/30 transition-colors mx-1 mb-1">#$2</span>');
 
+    // Process Mentions into Chips
+    processed = processed.replace(/(^|\s)@([a-zA-Z0-9_]+)/g, '$1<span class="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/30 cursor-pointer hover:bg-amber-500/30 transition-colors mx-1 mb-1">@$2</span>');
+
     // Restore inline code
     processed = processed.replace(/__INLINE_CODE_(\d+)__/g, (_, idx) => inlineCode[parseInt(idx)]);
     // Restore code blocks
@@ -173,9 +177,9 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     markdown({ base: markdownLanguage, codeLanguages: languages }),
     EditorView.lineWrapping,
     blockIconGutter,
-    autocompleteExtensions(allTags, allNotes),
+    autocompleteExtensions(allTags, allMentions, allNotes),
     transparentTheme
-  ], [allTags, allNotes, transparentTheme]);
+  ], [allTags, allMentions, allNotes, transparentTheme]);
 
   const BacklinksSection = () => {
     if (!initialBacklinks || initialBacklinks.length === 0) return null;
@@ -287,11 +291,11 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
   );
 
   const renderSidePanelContent = () => (
-    <div className="w-full xl:w-[400px] h-full flex flex-col p-4 gap-4 overflow-hidden">
+    <div className="w-full bg-transparent h-full flex flex-col p-4 gap-4 overflow-hidden">
       {/* Top Section: Local Graph */}
       <div className="flex-[0.4] min-h-0 flex flex-col gap-2">
         <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Local Graph</div>
-        <div className="flex-1 rounded-xl overflow-hidden border border-border bg-background">
+        <div className="flex-1 w-full rounded-xl overflow-hidden bg-transparent">
           <MiniGraphView currentSlug={slug} currentContent={content} globalData={graphData} />
         </div>
       </div>
@@ -299,7 +303,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
       {/* Bottom Section: Table of Contents */}
       <div className="flex-[0.6] min-h-0 flex flex-col gap-2">
         <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Table of Contents</div>
-        <div className="flex-1 rounded-xl border border-border bg-background/50 overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 rounded-xl bg-background/50 overflow-hidden flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
             {toc.length > 0 ? (
               <div className="space-y-1">

@@ -22,10 +22,10 @@ import { TabList } from "./tab-list";
 import { NoteMetadata } from "@/lib/notes";
 import { 
   FileText, 
-  FolderPlus, 
-  Hash, 
-  Plus, 
-  Share2, 
+  FolderPlus,
+  Hash,
+  AtSign,
+  Plus,  Share2, 
   MoreHorizontal, 
   Trash2, 
   Pencil,
@@ -48,7 +48,8 @@ import {
   moveFolderAction,
   searchNotesAction,
   setVaultPathAction,
-  getVaultPathAction
+  getVaultPathAction,
+  getTemplatesAction
 } from "@/app/actions";
 import { toast } from "sonner";
 import {
@@ -67,12 +68,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ThemeToggle } from "./theme-toggle";
 import { useDebounce } from '@/hooks/use-debounce';
 import { useTabs } from "./tabs-context";
 import { cn } from "@/lib/utils";
 import { DropZone } from "./drop-zone";
+import { Layout } from "lucide-react";
 
 interface LayoutWrapperProps {
   notes: NoteMetadata[];
@@ -85,6 +88,7 @@ type DialogState = {
   target?: string;
   parentFolder?: string;
   itemType?: 'note' | 'folder';
+  templateSlug?: string;
 };
 
 type TreeNode = {
@@ -167,7 +171,9 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
         current = current.children[part];
       });
     });
-    notes.forEach(note => {
+    notes
+      .filter(note => !note.relativeDir.startsWith('.templates'))
+      .forEach(note => {
       if (!note.relativeDir) {
         root.notes.push(note);
       } else {
@@ -185,6 +191,10 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
     });
     return root;
   }, [notes, folders]);
+
+  const templateList = React.useMemo(() => {
+    return notes.filter(note => note.relativeDir.startsWith('.templates'));
+  }, [notes]);
 
   React.useEffect(() => {
     const performSearch = async () => {
@@ -214,7 +224,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
     try {
       switch (dialog.type) {
         case 'create-note':
-          const noteRes = await createNoteAction(inputValue, dialog.parentFolder || '');
+          const noteRes = await createNoteAction(inputValue, dialog.parentFolder || '', dialog.templateSlug);
           if (noteRes.success) {
             toast.success(`Note "${inputValue}" created`);
             router.push(`/note/${noteRes.slug}`);
@@ -412,12 +422,10 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
             <Collapsible defaultOpen className="group/collapsible">
               <div>
                 <div className="flex items-center group/item pr-2">
-                  <CollapsibleTrigger>
-                    <SidebarMenuButton className="flex-1">
-                      <ChevronDown className="h-3 w-3 opacity-30 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
-                      <Folder className="h-4 w-4 opacity-50" />
-                      <span className="truncate font-medium text-[13px]">{node.name}</span>
-                    </SidebarMenuButton>
+                  <CollapsibleTrigger render={<SidebarMenuButton render={<div />} className="flex-1 cursor-pointer" />}>
+                    <ChevronDown className="h-3 w-3 opacity-30 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
+                    <Folder className="h-4 w-4 opacity-50" />
+                    <span className="truncate font-medium text-[13px]">{node.name}</span>
                   </CollapsibleTrigger>
                   
                   <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
@@ -437,13 +445,9 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                     </button>
                     
                     <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <button className="hover:bg-white/10 p-1 rounded transition-colors">
-                            <MoreHorizontal className="h-3 w-3 opacity-30" />
-                          </button>
-                        }
-                      />
+                      <DropdownMenuTrigger className="hover:bg-white/10 p-1 rounded transition-colors">
+                        <MoreHorizontal className="h-3 w-3 opacity-30" />
+                      </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40 bg-popover border-border text-popover-foreground">
                       <DropdownMenuItem onClick={() => setDialog({ type: 'create-note', parentFolder: node.path })}>
                         <Plus className="mr-2 h-4 w-4" /> New Note
@@ -487,7 +491,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                             <span className="truncate">{note.title}</span>
                           </SidebarMenuButton>
                           <DropdownMenu>
-                            <DropdownMenuTrigger render={<SidebarMenuAction showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
+                            <DropdownMenuTrigger render={<SidebarMenuAction render={<div />} showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
                             <DropdownMenuContent side="right" align="start" className="bg-popover border-border text-popover-foreground">
                               <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug, itemType: 'note' }); setInputValue(note.title); }}>
                                 <Pencil className="mr-2 h-4 w-4" /> Rename
@@ -529,7 +533,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                     <span className="truncate">{note.title}</span>
                   </SidebarMenuButton>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<SidebarMenuAction showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
+                    <DropdownMenuTrigger render={<SidebarMenuAction render={<div />} showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
                     <DropdownMenuContent side="right" align="start" className="bg-popover border-border text-popover-foreground">
                       <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug, itemType: 'note' }); setInputValue(note.title); }}>
                         <Pencil className="mr-2 h-4 w-4" /> Rename
@@ -555,6 +559,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
   const currentTitle = React.useMemo(() => {
     if (pathname === '/graph') return 'Graph View';
     if (pathname === '/tags') return 'Tags';
+    if (pathname === '/mentions') return 'Mentions';
     if (pathname.startsWith('/note/')) {
       const parts = pathname.split('/');
       return decodeURIComponent(parts[parts.length - 1]);
@@ -648,8 +653,27 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
             </DialogDescription>
           </DialogHeader>
           {(dialog.type === 'create-note' || dialog.type === 'create-excalidraw' || dialog.type === 'create-folder' || dialog.type === 'rename') && (
-            <div className="py-4">
-              <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Enter name..." className="bg-background border-border" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleConfirm()} />
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Name</label>
+                <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Enter name..." className="bg-background border-border" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleConfirm()} />
+              </div>
+              
+              {dialog.type === 'create-note' && templateList.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Template (Optional)</label>
+                  <select
+                    value={dialog.templateSlug || ''}
+                    onChange={(e) => setDialog(prev => ({ ...prev, templateSlug: e.target.value }))}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option value="">Blank Note</option>
+                    {templateList.map(t => (
+                      <option key={t.slug} value={t.slug}>{t.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
           {dialog.type === 'move' && (
@@ -678,7 +702,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
       </Dialog>
 
       <div className="flex h-screen w-full overflow-hidden bg-background text-foreground font-sans">
-        <SidebarUI collapsible="offcanvas" className="bg-sidebar">
+        <SidebarUI collapsible="offcanvas" className={cn("bg-sidebar", isMac && "pt-8")}>
           <div className="px-3 py-4 group-data-[state=collapsed]:hidden">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -695,20 +719,17 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                     onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverFolder(null); }}
                     onDrop={(e) => handleFolderDrop(e, '')}
                     className={cn(
-                      "flex items-center justify-between text-[10px] font-bold uppercase tracking-widest px-2 mb-1 transition-all rounded py-1 group/label",
+                      "flex items-center justify-between text-[10px] font-bold uppercase tracking-widest px-2 mb-1 transition-all rounded py-1 group/label hover:bg-accent/50 cursor-default",
                       dragOverFolder === 'root' ? "bg-primary/20 text-primary ring-1 ring-primary" : ""
                     )}
                   >
                     <button 
                       onClick={handleSelectVault}
-                      className={cn(
-                        "flex items-center gap-1 hover:opacity-100 transition-opacity truncate max-w-[130px] text-left cursor-pointer",
-                        dragOverFolder === 'root' ? "" : "opacity-70"
-                      )}
+                      className="flex items-center gap-1.5 truncate max-w-[130px] text-left cursor-pointer group"
                       title="Switch Vault"
                     >
-                      <span className="truncate">{vaultPath ? vaultPath.split(/[/\\]/).pop() : 'Select Vault'}</span>
-                      <ChevronDown className="h-3 w-3 opacity-50" />
+                      <span className="truncate opacity-50 group-hover:opacity-100 transition-opacity">{vaultPath ? vaultPath.split(/[/\\]/).pop() : 'Select Vault'}</span>
+                      <ChevronDown className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                     </button>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setDialog({ type: 'create-note', parentFolder: '' })} className="hover:bg-white/10 p-1 rounded transition-colors text-sidebar-foreground opacity-50 hover:opacity-100" title="New Note">
@@ -743,30 +764,97 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                 </SidebarGroup>
               )}
 
-              <SidebarGroup className="mt-auto border-t border-sidebar-border">
-                <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest opacity-30 px-2 mb-1">Explore</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link href="/tags" />} isActive={pathname === '/tags'} tooltip="Tags" className="hover:bg-accent data-[active=true]:bg-accent">
-                        <Hash className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Tags</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link href="/graph" />} isActive={pathname === '/graph'} tooltip="Graph View" className="hover:bg-accent data-[active=true]:bg-accent">
-                        <Share2 className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Graph View</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
+              <Collapsible defaultOpen className="group/templates">
+                <SidebarGroup className="mt-auto">
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between text-[10px] font-bold uppercase tracking-widest px-2 mb-1 group/tpl-label cursor-pointer hover:bg-accent/50 rounded transition-colors py-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="opacity-50 group-hover/tpl-label:opacity-100 transition-opacity">Templates</span>
+                        <ChevronDown className="h-3 w-3 opacity-50 transition-transform group-data-[state=closed]/templates:-rotate-90 group-hover/tpl-label:opacity-100 transition-opacity" />
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDialog({ type: 'create-note', parentFolder: '.templates' });
+                        }}
+                        className="opacity-50 hover:opacity-100 transition-opacity hover:bg-white/10 p-1 rounded"
+                        title="New Template"
+                      >
+                        <Plus className="h-3 w-3 text-sidebar-foreground" />
+                      </button>
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu className="max-h-[160px] overflow-y-auto no-scrollbar">
+                        {templateList.map(tpl => (
+                          <SidebarMenuItem key={tpl.slug}>
+                            <div className="flex items-center group/tpl pr-2">
+                              <SidebarMenuButton render={<Link href={`/note/${tpl.slug}`} />} isActive={pathname === `/note/${tpl.slug}`} className="flex-1">
+                                <Layout className="h-3.5 w-3.5 opacity-40" />
+                                <span className="truncate">{tpl.title}</span>
+                              </SidebarMenuButton>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger render={<SidebarMenuAction render={<div />} showOnHover className="opacity-0 group-hover/tpl:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
+                                <DropdownMenuContent side="right" align="start" className="bg-popover border-border text-popover-foreground">
+                                  <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: tpl.slug, itemType: 'note' }); setInputValue(tpl.title); }}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Rename
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setDialog({ type: 'delete-file', target: tpl.slug })} className="text-destructive focus:text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </SidebarMenuItem>
+                        ))}
+                        {templateList.length === 0 && (
+                          <div className="px-4 py-2 text-[10px] text-muted-foreground italic">No templates yet</div>
+                        )}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </SidebarGroup>
+              </Collapsible>
+
+              <Collapsible defaultOpen className="group/explore">
+                <SidebarGroup>
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-2 mb-1 group/exp-label cursor-pointer hover:bg-accent/50 rounded transition-colors py-1">
+                      <span className="opacity-50 group-hover/exp-label:opacity-100 transition-opacity">Explore</span>
+                      <ChevronDown className="h-3 w-3 opacity-50 transition-transform group-data-[state=closed]/explore:-rotate-90 group-hover/exp-label:opacity-100 transition-opacity" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton render={<Link href="/tags" />} isActive={pathname === '/tags'} tooltip="Tags" className="hover:bg-accent data-[active=true]:bg-accent">
+                            <Hash className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Tags</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton render={<Link href="/mentions" />} isActive={pathname === '/mentions'} tooltip="Mentions" className="hover:bg-accent data-[active=true]:bg-accent">
+                            <AtSign className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Mentions</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton render={<Link href="/graph" />} isActive={pathname === '/graph'} tooltip="Graph View" className="hover:bg-accent data-[active=true]:bg-accent">
+                            <Share2 className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Graph View</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </SidebarGroup>
+              </Collapsible>
             </div>
           </SidebarContent>
         </SidebarUI>
 
         <div className="flex flex-1 flex-col overflow-hidden bg-background">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4 bg-background/50 backdrop-blur-md sticky top-0 z-20">
-            <SidebarTrigger className="-ml-1 opacity-50 hover:opacity-100 transition-opacity text-foreground" />
+            <SidebarTrigger className={cn("-ml-1 opacity-50 hover:opacity-100 transition-all duration-300 text-foreground", isMac && "peer-data-[state=collapsed]:ml-16")} />
             <div className="flex-1 flex items-center min-w-0">
               <TabList />
             </div>

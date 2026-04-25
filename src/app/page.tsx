@@ -4,7 +4,7 @@ import { LayoutWrapper } from "@/components/layout-wrapper";
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const notes = await getNotes();
+  const notes = await getNotes('', true);
   const folders = await getFolders();
 
   return (
