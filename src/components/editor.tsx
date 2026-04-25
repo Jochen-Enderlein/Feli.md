@@ -37,6 +37,8 @@ import { EditorView } from '@codemirror/view';
 import { blockIconGutter, autocompleteExtensions } from '@/lib/editor/cm-extensions';
 import { MiniGraphView } from './mini-graph-view';
 import { cn } from '@/lib/utils';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface EditorProps {
   slug: string;
@@ -48,6 +50,7 @@ interface EditorProps {
 }
 
 export function Editor({ slug, initialContent, allNotes, graphData, backlinks: initialBacklinks, allTags }: EditorProps) {
+  const isCompact = useMediaQuery("(max-width: 1279px)");
   const [content, setContent] = useState(initialContent);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const { isGraphOpen, setIsGraphOpen, openTab } = useTabs();
@@ -283,6 +286,54 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     </button>
   );
 
+  const renderSidePanelContent = () => (
+    <div className="w-full xl:w-[400px] h-full flex flex-col p-4 gap-4 overflow-hidden">
+      {/* Top Section: Local Graph */}
+      <div className="flex-[0.4] min-h-0 flex flex-col gap-2">
+        <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Local Graph</div>
+        <div className="flex-1 rounded-xl overflow-hidden border border-border bg-background">
+          <MiniGraphView currentSlug={slug} currentContent={content} globalData={graphData} />
+        </div>
+      </div>
+
+      {/* Bottom Section: Table of Contents */}
+      <div className="flex-[0.6] min-h-0 flex flex-col gap-2">
+        <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Table of Contents</div>
+        <div className="flex-1 rounded-xl border border-border bg-background/50 overflow-hidden flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
+            {toc.length > 0 ? (
+              <div className="space-y-1">
+                {toc.map((heading, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      scrollToHeading(heading.line);
+                      if (isCompact) setIsGraphOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-md transition-all hover:bg-accent group relative flex items-center gap-3 ${
+                      heading.level === 1 ? 'text-foreground' : 'text-muted-foreground pl-8'
+                    }`}
+                  >
+                    <div className={`h-1 rounded-full transition-all group-hover:w-2 ${
+                      heading.level === 1 ? 'w-1 bg-primary/40' : 'w-1 bg-border'
+                    }`} />
+                    <span className={`truncate ${heading.level === 1 ? 'text-xs font-bold' : 'text-[11px] font-medium'}`}>
+                      {heading.text}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest italic">No headings found</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative w-full h-full flex flex-col xl:flex-row overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
@@ -431,54 +482,25 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
       </div>
 
       {/* Collapsible Side Panel (Graph + ToC) */}
-      <div 
-        className={`hidden xl:block transition-all duration-300 ease-in-out border-l border-border bg-background/50 backdrop-blur-sm overflow-hidden h-full no-print ${
-          isGraphOpen ? 'w-[400px] opacity-100' : 'w-0 opacity-0 border-l-0'
-        }`}
-      >
-        <div className="w-[400px] h-full flex flex-col p-4 gap-4 overflow-hidden">
-          {/* Top Section: Local Graph */}
-          <div className="flex-[0.4] min-h-0 flex flex-col gap-2">
-            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Local Graph</div>
-            <div className="flex-1 rounded-xl overflow-hidden border border-border bg-background">
-              <MiniGraphView currentSlug={slug} currentContent={content} globalData={graphData} />
-            </div>
-          </div>
-
-          {/* Bottom Section: Table of Contents */}
-          <div className="flex-[0.6] min-h-0 flex flex-col gap-2">
-            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground px-2">Table of Contents</div>
-            <div className="flex-1 rounded-xl border border-border bg-background/50 overflow-hidden flex flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
-                {toc.length > 0 ? (
-                  <div className="space-y-1">
-                    {toc.map((heading, i) => (
-                      <button
-                        key={i}
-                        onClick={() => scrollToHeading(heading.line)}
-                        className={`w-full text-left px-3 py-2 rounded-md transition-all hover:bg-accent group relative flex items-center gap-3 ${
-                          heading.level === 1 ? 'text-foreground' : 'text-muted-foreground pl-8'
-                        }`}
-                      >
-                        <div className={`h-1 rounded-full transition-all group-hover:w-2 ${
-                          heading.level === 1 ? 'w-1 bg-primary/40' : 'w-1 bg-border'
-                        }`} />
-                        <span className={`truncate ${heading.level === 1 ? 'text-xs font-bold' : 'text-[11px] font-medium'}`}>
-                          {heading.text}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest italic">No headings found</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+      {isCompact ? (
+        <Sheet open={isGraphOpen} onOpenChange={setIsGraphOpen}>
+          <SheetContent side="right" className="w-[85vw] sm:w-[400px] p-0 border-l border-border bg-background/95 backdrop-blur-md">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Graph and Table of Contents</SheetTitle>
+              <SheetDescription>View local graph and table of contents for this note.</SheetDescription>
+            </SheetHeader>
+            {renderSidePanelContent()}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <div 
+          className={`hidden xl:block transition-all duration-300 ease-in-out border-l border-border bg-background/50 backdrop-blur-sm overflow-hidden h-full no-print ${
+            isGraphOpen ? 'w-[400px] opacity-100' : 'w-0 opacity-0 border-l-0'
+          }`}
+        >
+          {renderSidePanelContent()}
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -81,9 +81,10 @@ interface LayoutWrapperProps {
 }
 
 type DialogState = {
-  type: 'create-note' | 'create-excalidraw' | 'create-folder' | 'delete-file' | 'delete-folder' | 'rename' | null;
+  type: 'create-note' | 'create-excalidraw' | 'create-folder' | 'delete-file' | 'delete-folder' | 'rename' | 'move' | null;
   target?: string;
   parentFolder?: string;
+  itemType?: 'note' | 'folder';
 };
 
 type TreeNode = {
@@ -257,11 +258,61 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
           break;
         case 'rename':
           if (dialog.target) {
-            const renameRes = await moveItemAction(dialog.target, inputValue);
+            const parts = dialog.target.split('/');
+            parts.pop();
+            const parentPath = parts.join('/');
+            
+            // For files, we might need to ensure the extension is preserved if it was present,
+            // but the title we set in inputValue already strips the .md extension. 
+            // The moveItemAction backend automatically appends .md if not present.
+            // For .excalidraw files, we need to make sure the extension is kept if it was an excalidraw file.
+            let newName = inputValue;
+            if (dialog.itemType !== 'folder' && dialog.target.endsWith('.excalidraw') && !newName.endsWith('.excalidraw')) {
+              newName = `${newName}.excalidraw`;
+            }
+            
+            const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+
+            const renameRes = dialog.itemType === 'folder' 
+              ? await moveFolderAction(dialog.target, newPath) 
+              : await moveItemAction(dialog.target, newPath);
+              
             if (renameRes.success) {
-              toast.success('Item moved/renamed');
-              router.push(`/note/${encodeURIComponent(inputValue)}`);
+              toast.success('Item renamed');
+              if (dialog.itemType !== 'folder') {
+                 router.push(`/note/${encodeURIComponent(newPath)}`);
+              }
               closeDialog();
+            }
+          }
+          break;
+        case 'move':
+          if (dialog.target) {
+            const targetFolder = inputValue;
+            const sourceName = dialog.target.split('/').pop() || '';
+            const newPath = targetFolder ? `${targetFolder}/${sourceName}` : sourceName;
+
+            if (dialog.target === newPath || dialog.target === targetFolder) {
+              closeDialog();
+              return;
+            }
+
+            if (dialog.itemType === 'folder' && targetFolder.startsWith(`${dialog.target}/`)) {
+              toast.error("Cannot move a folder into its own subfolder");
+              setIsPending(false);
+              return;
+            }
+
+            const moveRes = dialog.itemType === 'folder'
+              ? await moveFolderAction(dialog.target, newPath)
+              : await moveItemAction(dialog.target, newPath);
+
+            if (moveRes.success) {
+              toast.success('Item moved');
+              router.refresh();
+              closeDialog();
+            } else {
+              toast.error('Failed to move item');
             }
           }
           break;
@@ -403,6 +454,12 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                       <DropdownMenuItem onClick={() => setDialog({ type: 'create-folder', parentFolder: node.path })}>
                         <FolderPlus className="mr-2 h-4 w-4" /> New Subfolder
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: node.path, itemType: 'folder' }); setInputValue(node.name); }}>
+                        <Pencil className="mr-2 h-4 w-4" /> Rename Folder
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setDialog({ type: 'move', target: node.path, itemType: 'folder' }); setInputValue(''); }}>
+                        <Folder className="mr-2 h-4 w-4" /> Move Folder
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDialog({ type: 'delete-folder', target: node.path })} className="text-destructive focus:text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" /> Delete Folder
                       </DropdownMenuItem>
@@ -432,8 +489,11 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                           <DropdownMenu>
                             <DropdownMenuTrigger render={<SidebarMenuAction showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
                             <DropdownMenuContent side="right" align="start" className="bg-popover border-border text-popover-foreground">
-                              <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug }); setInputValue(decodeURIComponent(note.slug)); }}>
-                                <Pencil className="mr-2 h-4 w-4" /> Rename / Move
+                              <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug, itemType: 'note' }); setInputValue(note.title); }}>
+                                <Pencil className="mr-2 h-4 w-4" /> Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setDialog({ type: 'move', target: note.slug, itemType: 'note' }); setInputValue(''); }}>
+                                <Folder className="mr-2 h-4 w-4" /> Move
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setDialog({ type: 'delete-file', target: note.slug })} className="text-destructive focus:text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -471,8 +531,11 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<SidebarMenuAction showOnHover className="opacity-0 group-hover/note:opacity-100"><MoreHorizontal /></SidebarMenuAction>} />
                     <DropdownMenuContent side="right" align="start" className="bg-popover border-border text-popover-foreground">
-                      <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug }); setInputValue(decodeURIComponent(note.slug)); }}>
-                        <Pencil className="mr-2 h-4 w-4" /> Rename / Move
+                      <DropdownMenuItem onClick={() => { setDialog({ type: 'rename', target: note.slug, itemType: 'note' }); setInputValue(note.title); }}>
+                        <Pencil className="mr-2 h-4 w-4" /> Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setDialog({ type: 'move', target: note.slug, itemType: 'note' }); setInputValue(''); }}>
+                        <Folder className="mr-2 h-4 w-4" /> Move
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setDialog({ type: 'delete-file', target: note.slug })} className="text-destructive focus:text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -575,16 +638,34 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               {dialog.type === 'create-folder' && 'Create New Folder'}
               {dialog.type === 'delete-file' && 'Delete Note'}
               {dialog.type === 'delete-folder' && 'Delete Folder'}
-              {dialog.type === 'rename' && 'Rename / Move Item'}
+              {dialog.type === 'rename' && 'Rename Item'}
+              {dialog.type === 'move' && 'Move Item'}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               {dialog.type === 'delete-file' && 'Are you sure you want to delete this note? This action cannot be undone.'}
               {dialog.type === 'delete-folder' && `Are you sure you want to delete "${dialog.target}" and all its contents?`}
+              {dialog.type === 'move' && `Select a destination for "${dialog.target?.split('/').pop()}"`}
             </DialogDescription>
           </DialogHeader>
           {(dialog.type === 'create-note' || dialog.type === 'create-excalidraw' || dialog.type === 'create-folder' || dialog.type === 'rename') && (
             <div className="py-4">
               <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Enter name..." className="bg-background border-border" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleConfirm()} />
+            </div>
+          )}
+          {dialog.type === 'move' && (
+             <div className="py-4">
+              <select
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
+              >
+                <option value="">Root (Library)</option>
+                {folders.map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
             </div>
           )}
           <DialogFooter>
@@ -598,23 +679,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
 
       <div className="flex h-screen w-full overflow-hidden bg-background text-foreground font-sans">
         <SidebarUI collapsible="offcanvas" className="bg-sidebar">
-          <SidebarHeader className="border-b border-sidebar-border h-12 flex flex-row items-center px-4 justify-end">
-            <div className="flex items-center gap-0.5">
-              <SidebarMenuButton size="sm" onClick={() => setDialog({ type: 'create-note', parentFolder: '' })} tooltip="New Note">
-                <Plus className="h-4 w-4" />
-              </SidebarMenuButton>
-              <SidebarMenuButton size="sm" onClick={() => setDialog({ type: 'create-excalidraw', parentFolder: '' })} tooltip="New Excalidraw Drawing">
-                <Pencil className="h-4 w-4" />
-              </SidebarMenuButton>
-              <SidebarMenuButton size="sm" onClick={() => setDialog({ type: 'create-folder', parentFolder: '' })} tooltip="New Folder">
-                <FolderPlus className="h-4 w-4" />
-              </SidebarMenuButton>
-              <SidebarMenuButton size="sm" onClick={handleSelectVault} tooltip="Switch Vault">
-                <Library className="h-4 w-4 opacity-50" />
-              </SidebarMenuButton>
-            </div>
-          </SidebarHeader>
-          <div className="px-3 py-2 group-data-[state=collapsed]:hidden">
+          <div className="px-3 py-4 group-data-[state=collapsed]:hidden">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring" />
@@ -630,11 +695,32 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                     onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverFolder(null); }}
                     onDrop={(e) => handleFolderDrop(e, '')}
                     className={cn(
-                      "text-[10px] font-bold uppercase tracking-widest px-2 mb-1 transition-all rounded py-1",
-                      dragOverFolder === 'root' ? "bg-primary/20 text-primary ring-1 ring-primary" : "opacity-30"
+                      "flex items-center justify-between text-[10px] font-bold uppercase tracking-widest px-2 mb-1 transition-all rounded py-1 group/label",
+                      dragOverFolder === 'root' ? "bg-primary/20 text-primary ring-1 ring-primary" : ""
                     )}
                   >
-                    Library
+                    <button 
+                      onClick={handleSelectVault}
+                      className={cn(
+                        "flex items-center gap-1 hover:opacity-100 transition-opacity truncate max-w-[130px] text-left cursor-pointer",
+                        dragOverFolder === 'root' ? "" : "opacity-70"
+                      )}
+                      title="Switch Vault"
+                    >
+                      <span className="truncate">{vaultPath ? vaultPath.split(/[/\\]/).pop() : 'Select Vault'}</span>
+                      <ChevronDown className="h-3 w-3 opacity-50" />
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setDialog({ type: 'create-note', parentFolder: '' })} className="hover:bg-white/10 p-1 rounded transition-colors text-sidebar-foreground opacity-50 hover:opacity-100" title="New Note">
+                        <Plus className="h-3 w-3" />
+                      </button>
+                      <button onClick={() => setDialog({ type: 'create-excalidraw', parentFolder: '' })} className="hover:bg-white/10 p-1 rounded transition-colors text-sidebar-foreground opacity-50 hover:opacity-100" title="New Excalidraw">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button onClick={() => setDialog({ type: 'create-folder', parentFolder: '' })} className="hover:bg-white/10 p-1 rounded transition-colors text-sidebar-foreground opacity-50 hover:opacity-100" title="New Folder">
+                        <FolderPlus className="h-3 w-3" />
+                      </button>
+                    </div>
                   </SidebarGroupLabel>
                   <SidebarGroupContent><SidebarMenu>{renderTree(fullTree)}</SidebarMenu></SidebarGroupContent>
                 </SidebarGroup>
