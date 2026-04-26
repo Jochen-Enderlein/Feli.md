@@ -18,25 +18,30 @@
     "directories": {
       "output": "dist"
     },
+    "icon": "build/icon.ico",
     "files": [
       "electron/**/*",
       "package.json",
       "node_modules/**/*",
       ".next/**/*",
       "public/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "build/**/*"
     ],
     "linux": {
       "target": [
         "AppImage",
         "deb"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "build/icon.ico"
     }
   },
   "dependencies": {

@@ -24,6 +24,7 @@ function createWindow() {
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 12, y: 16 }, // macOS: Position der Buttons anpassen
     backgroundColor: '#050505',
+    icon: path.join(__dirname, '../build/icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,

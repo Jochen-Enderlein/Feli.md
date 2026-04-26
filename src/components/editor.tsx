@@ -22,7 +22,9 @@ import {
   Code, 
   Table as TableIcon,
   Share2,
-  FileDown
+  FileDown,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, prism } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -35,6 +37,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { EditorView } from '@codemirror/view';
 import { blockIconGutter, autocompleteExtensions } from '@/lib/editor/cm-extensions';
+import { tableEditExtension, tableEditTheme } from '@/lib/editor/table-extension';
 import { MiniGraphView } from './mini-graph-view';
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
@@ -58,6 +61,11 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
   const isCompact = useMediaQuery("(max-width: 1279px)");
   const [content, setContent] = useState(initialContent);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [tableEditData, setTableEditData] = useState<{
+    data: string[][];
+    originalString: string;
+    isOpen: boolean;
+  }>({ data: [], originalString: '', isOpen: false });
   const { isGraphOpen, setIsGraphOpen, openTab } = useTabs();
   const debouncedContent = useDebounce(content, 750);
   const codeMirrorRef = useRef<ReactCodeMirrorRef>(null);
@@ -133,6 +141,69 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     return processed;
   }, [content, slug]);
 
+  const handleSaveTable = () => {
+    if (!tableEditData.originalString) return;
+
+    const markdownTable = tableEditData.data.map((row, i) => {
+      const line = `| ${row.join(' | ')} |`;
+      if (i === 0) {
+        const separator = `| ${row.map(() => '---').join(' | ')} |`;
+        return `${line}\n${separator}`;
+      }
+      return line;
+    }).join('\n');
+
+    const newContent = content.replace(tableEditData.originalString, markdownTable);
+    setContent(newContent);
+    setTableEditData(prev => ({ ...prev, isOpen: false }));
+    toast.success('Table updated');
+  };
+
+  const openTableEditorAtCursor = (forcedPos?: number) => {
+    const view = codeMirrorRef.current?.view;
+    if (!view) return;
+
+    const { state } = view;
+    const pos = forcedPos !== undefined ? forcedPos : state.selection.main.head;
+    const line = state.doc.lineAt(pos);
+    
+    if (!line.text.includes('|')) {
+      // If not in a table, just insert a template
+      insertFormat('\n| Header | Header | Header |\n|--------|--------|--------|\n| Cell   | Cell   | Cell   |\n');
+      return;
+    }
+
+    // Find table boundaries
+    let startLine = line.number;
+    while (startLine > 1 && state.doc.line(startLine - 1).text.includes('|')) {
+      startLine--;
+    }
+    let endLine = line.number;
+    while (endLine < state.doc.lines && state.doc.line(endLine + 1).text.includes('|')) {
+      endLine++;
+    }
+
+    const tableText = state.doc.sliceString(state.doc.line(startLine).from, state.doc.line(endLine).to);
+    
+    // Parse
+    const rows = tableText.split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !l.match(/^\|?(\s*:?---*:?\s*\|?)+\s*$/));
+    
+    const data = rows.map(row => {
+      let cells = row.split('|');
+      if (cells[0] === '') cells.shift();
+      if (cells[cells.length - 1] === '') cells.pop();
+      return cells.map(c => c.trim());
+    });
+
+    setTableEditData({
+      data,
+      originalString: tableText,
+      isOpen: true
+    });
+  };
+
   const insertFormat = (prefix: string, suffix: string = '') => {
     if (isReadOnly) return;
     const view = codeMirrorRef.current?.view;
@@ -181,9 +252,11 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
     markdown({ base: markdownLanguage, codeLanguages: languages }),
     EditorView.lineWrapping,
     blockIconGutter,
+    tableEditExtension((pos) => openTableEditorAtCursor(pos)),
+    tableEditTheme,
     autocompleteExtensions(allTags, allMentions, allNotes),
     transparentTheme
-  ], [allTags, allMentions, allNotes, transparentTheme]);
+  ], [allTags, allMentions, allNotes, transparentTheme, openTableEditorAtCursor]);
 
   const BacklinksSection = () => {
     if (!initialBacklinks || initialBacklinks.length === 0) return null;
@@ -390,9 +463,9 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
                     <FormatButton onClick={() => insertFormat('```\n', '\n```')} icon={Code} title="Code Block" />
                     <Separator orientation="vertical" className="mx-1 h-4 bg-border opacity-50" />
                     <FormatButton 
-                      onClick={() => insertFormat('\n| Header | Header | Header |\n|--------|--------|--------|\n| Cell   | Cell   | Cell   |\n')} 
+                      onClick={openTableEditorAtCursor} 
                       icon={TableIcon} 
-                      title="Insert Table" 
+                      title="Insert or Edit Table" 
                     />
                     <Separator orientation="vertical" className="mx-1 h-4 bg-border opacity-50" />
                   </>
@@ -424,6 +497,104 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeRaw]}
                       components={{
+                        input: ({ node, ...props }) => {
+                          if (props.type === 'checkbox') {
+                            return (
+                              <input
+                                type="checkbox"
+                                checked={props.checked}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer transition-all mr-2"
+                                onChange={(e) => {
+                                  // Find this checkbox in the source text and toggle it
+                                  const isChecked = e.target.checked;
+                                  
+                                  // We need to find which checkbox this is in the UI
+                                  // This is a bit tricky with ReactMarkdown, so we find all checkboxes
+                                  const checkboxes = document.querySelectorAll('.prose input[type="checkbox"]');
+                                  const index = Array.from(checkboxes).indexOf(e.target as HTMLInputElement);
+                                  
+                                  if (index !== -1) {
+                                    let count = 0;
+                                    const newContent = content.replace(/^(\s*[-*+]\s+\[)([ xX])(\].*)$/gm, (match, p1, p2, p3) => {
+                                      if (count === index) {
+                                        count++;
+                                        return p1 + (isChecked ? 'x' : ' ') + p3;
+                                      }
+                                      count++;
+                                      return match;
+                                    });
+                                    setContent(newContent);
+                                  }
+                                }}
+                              />
+                            );
+                          }
+                          return <input {...props} />;
+                        },
+                        table: ({ node, children, ...props }) => {
+                          return (
+                            <div className="relative group/table mb-6">
+                              <div className="overflow-x-auto">
+                                <table className="w-full border-collapse" {...props}>
+                                  {children}
+                                </table>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="absolute -top-3 -right-3 h-7 px-2 text-[10px] opacity-0 group-hover/table:opacity-100 transition-opacity shadow-lg"
+                                onClick={() => {
+                                  // Extract table data from the DOM or original content
+                                  // Finding the exact table in content is hard by index, 
+                                  // but we can search for the markdown block.
+                                  const tableRows: string[][] = [];
+                                  const rows = (node as any).children.filter((c: any) => c.type === 'element' && (c.tagName === 'thead' || c.tagName === 'tbody'));
+                                  
+                                  rows.forEach((rowGroup: any) => {
+                                    rowGroup.children.forEach((tr: any) => {
+                                      if (tr.type === 'element' && tr.tagName === 'tr') {
+                                        const cells: string[] = [];
+                                        tr.children.forEach((td: any) => {
+                                          if (td.type === 'element' && (td.tagName === 'td' || td.tagName === 'th')) {
+                                            // Extract text content recursively
+                                            const getText = (n: any): string => {
+                                              if (n.type === 'text') return n.value;
+                                              if (n.children) return n.children.map(getText).join('');
+                                              return '';
+                                            };
+                                            cells.push(getText(td).trim());
+                                          }
+                                        });
+                                        if (cells.length > 0) tableRows.push(cells);
+                                      }
+                                    });
+                                  });
+
+                                  // Simple heuristic to find this table in original content
+                                  // This works best if tables are unique or we use the first match
+                                  const tableRegex = /\|(.+)\|[\s\S]+?\|(.+)\|/g;
+                                  let match;
+                                  let bestMatch = '';
+                                  while ((match = tableRegex.exec(content)) !== null) {
+                                    // Check if this match contains the first row of our table
+                                    if (tableRows[0] && match[0].includes(tableRows[0][0])) {
+                                      bestMatch = match[0];
+                                      break;
+                                    }
+                                  }
+
+                                  setTableEditData({
+                                    data: tableRows,
+                                    originalString: bestMatch || '',
+                                    isOpen: true
+                                  });
+                                }}
+                              >
+                                <TableIcon className="h-3 w-3 mr-1" /> Edit Table
+                              </Button>
+                            </div>
+                          );
+                        },
                         div: ({ node, className, ...props }) => {
                           if (className === 'excalidraw-transclusion') {
                             const slug = props['data-slug' as keyof typeof props] as string;
@@ -534,6 +705,88 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
           </div>
         )
       )}
+
+      {/* Table Editor Dialog */}
+      <Dialog 
+        open={tableEditData.isOpen} 
+        onOpenChange={(open) => !open && setTableEditData(prev => ({ ...prev, isOpen: false }))}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-popover border-border">
+          <DialogHeader className="px-1">
+            <DialogTitle className="text-xl">Edit Table</DialogTitle>
+            <DialogDescription>Modify table cells, add or remove rows and columns.</DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto p-1 mt-4">
+            <div className="inline-block min-w-full align-middle">
+              <table className="min-w-full border-collapse border border-border">
+                <tbody>
+                  {tableEditData.data.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, colIndex) => (
+                        <td key={colIndex} className="border border-border p-0">
+                          <input
+                            value={cell}
+                            onChange={(e) => {
+                              const newData = [...tableEditData.data];
+                              newData[rowIndex][colIndex] = e.target.value;
+                              setTableEditData(prev => ({ ...prev, data: newData }));
+                            }}
+                            className="w-full px-3 py-2 bg-transparent text-sm focus:bg-accent outline-none min-w-[120px]"
+                          />
+                        </td>
+                      ))}
+                      <td className="border-none p-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive opacity-30 hover:opacity-100"
+                          onClick={() => {
+                            const newData = tableEditData.data.filter((_, i) => i !== rowIndex);
+                            setTableEditData(prev => ({ ...prev, data: newData }));
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                const newRow = Array(tableEditData.data[0]?.length || 1).fill('');
+                setTableEditData(prev => ({ ...prev, data: [...prev.data, newRow] }));
+              }}
+            >
+              <Plus className="h-3 w-3 mr-2" /> Add Row
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                const newData = tableEditData.data.map(row => [...row, '']);
+                setTableEditData(prev => ({ ...prev, data: newData }));
+              }}
+            >
+              <Plus className="h-3 w-3 mr-2" /> Add Column
+            </Button>
+            <div className="flex-1" />
+            <Button variant="ghost" onClick={() => setTableEditData(prev => ({ ...prev, isOpen: false }))}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveTable}>
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

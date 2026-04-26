@@ -5,14 +5,23 @@ import Link from 'next/link';
 import { X, FileText, Pencil } from 'lucide-react';
 import { useTabs } from './tabs-context';
 import { cn } from '@/lib/utils';
+import { useSidebar } from '@/components/ui/sidebar';
 
 export function TabList() {
   const { tabs, activeTab, closeTab } = useTabs();
+  const { state } = useSidebar();
+  
+  const isMac = React.useMemo(() => {
+    return typeof window !== 'undefined' && window.electron?.platform === 'darwin';
+  }, []);
 
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar h-full px-2">
+    <div className={cn(
+      "flex items-center gap-1 overflow-x-auto no-scrollbar h-full transition-all duration-300",
+      isMac && state === "collapsed" ? "pl-20" : "px-2"
+    )}>
       {tabs.map((tab) => (
         <div
           key={tab.slug}

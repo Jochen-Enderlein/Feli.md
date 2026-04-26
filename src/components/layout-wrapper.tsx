@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ThemeToggle } from "./theme-toggle";
 import { useDebounce } from '@/hooks/use-debounce';
@@ -84,7 +85,7 @@ interface LayoutWrapperProps {
 }
 
 type DialogState = {
-  type: 'create-note' | 'create-excalidraw' | 'create-folder' | 'delete-file' | 'delete-folder' | 'rename' | 'move' | null;
+  type: 'create-note' | 'create-excalidraw' | 'create-folder' | 'delete-file' | 'delete-folder' | 'rename' | 'move' | 'folder-settings' | null;
   target?: string;
   parentFolder?: string;
   itemType?: 'note' | 'folder';
@@ -134,6 +135,33 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
   const [isVaultLoading, setIsVaultLoading] = React.useState(true);
   const [dragOverFolder, setDragOverFolder] = React.useState<string | null>(null);
   const [helpOpen, setHelpOpen] = React.useState(false);
+  const [folderConfigs, setFolderConfigs] = React.useState<Record<string, { color: string, mode: 'text' | 'bg' }>>({});
+
+  // Load folder configs
+  React.useEffect(() => {
+    const saved = localStorage.getItem('skriva_folder_configs');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Clean up legacy named colors (e.g., 'blue', 'emerald') which are now too bright
+        const cleaned: Record<string, { color: string, mode: 'text' | 'bg' }> = {};
+        for (const [path, config] of Object.entries(parsed) as [string, { color: string, mode: 'text' | 'bg' }][]) {
+          if (config.color && config.color.startsWith('#')) {
+            cleaned[path] = config;
+          }
+        }
+        setFolderConfigs(cleaned);
+      } catch (e) {
+        console.error('Failed to parse folder configs', e);
+      }
+    }
+  }, []);
+
+  const saveFolderConfig = (path: string, color: string, mode: 'text' | 'bg') => {
+    const newConfigs = { ...folderConfigs, [path]: { color, mode } };
+    setFolderConfigs(newConfigs);
+    localStorage.setItem('skriva_folder_configs', JSON.stringify(newConfigs));
+  };
 
   React.useEffect(() => {
     const loadVault = async () => {
@@ -399,8 +427,42 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
     }
   };
 
+  const getFolderStyle = (path: string, name: string) => {
+    const config = folderConfigs[path];
+    
+    if (!config || !config.color) {
+      return {
+        itemStyle: {},
+        iconStyle: {},
+        textStyle: {},
+        className: ""
+      };
+    }
+
+    const color = config.color;
+    const mode = config.mode || 'text';
+
+    if (mode === 'bg') {
+      return {
+        itemStyle: { backgroundColor: `${color}1a`, color: color }, // 1a is ~10% opacity hex
+        iconStyle: { color: color },
+        textStyle: { color: color },
+        className: "hover:brightness-125"
+      };
+    }
+
+    return {
+      itemStyle: {},
+      iconStyle: { color: color },
+      textStyle: { color: color },
+      className: ""
+    };
+  };
+
   const renderTree = (node: TreeNode) => {
     const isRoot = node.name === 'Root';
+    const folderStyle = !isRoot ? getFolderStyle(node.path, node.name) : { itemStyle: {}, iconStyle: {}, textStyle: {}, className: "" };
+    
     return (
       <React.Fragment key={node.path || 'root'}>
         {!isRoot && (
@@ -416,17 +478,19 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
             onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverFolder(null); }}
             onDrop={(e) => handleFolderDrop(e, node.path)}
             className={cn(
-              "transition-colors rounded-md cursor-grab active:cursor-grabbing",
+              "transition-all duration-200 rounded-md cursor-grab active:cursor-grabbing",
+              folderStyle.className,
               dragOverFolder === node.path && "bg-primary/20 ring-1 ring-primary"
             )}
+            style={folderStyle.itemStyle}
           >
             <Collapsible defaultOpen className="group/collapsible">
               <div>
                 <div className="flex items-center group/item pr-2">
                   <CollapsibleTrigger render={<SidebarMenuButton render={<div />} className="flex-1 cursor-pointer" />}>
                     <ChevronDown className="h-3 w-3 opacity-30 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
-                    <Folder className="h-4 w-4 opacity-50" />
-                    <span className="truncate font-medium text-[13px]">{node.name}</span>
+                    <Folder className="h-4 w-4 opacity-70 group-hover:opacity-100 transition-opacity" style={folderStyle.iconStyle} />
+                    <span className="truncate font-medium text-[13px] opacity-80 group-hover:opacity-100 transition-opacity" style={folderStyle.textStyle}>{node.name}</span>
                   </CollapsibleTrigger>
                   
                   <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
@@ -450,6 +514,13 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                         <MoreHorizontal className="h-3 w-3 opacity-30" />
                       </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40 bg-popover border-border text-popover-foreground">
+                      <DropdownMenuItem onClick={() => setDialog({ type: 'folder-settings', target: node.path })}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folderStyle.iconStyle.color }} />
+                          Folder Settings
+                        </div>
+                      </DropdownMenuItem>
+                      <Separator className="my-1 opacity-50" />
                       <DropdownMenuItem onClick={() => setDialog({ type: 'create-note', parentFolder: node.path })}>
                         <Plus className="mr-2 h-4 w-4" /> New Note
                       </DropdownMenuItem>
@@ -473,7 +544,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                 </div>
               </div>
               <CollapsibleContent>
-                  <SidebarMenuSub className="ml-4 border-l border-border pl-2 min-w-max">
+                  <SidebarMenuSub className="ml-2.5 border-l border-border/50 pl-2 min-w-max">
                     {Object.values(node.children).map(child => renderTree(child))}
                     {node.notes.map(note => (
                       <SidebarMenuItem 
@@ -487,7 +558,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                         className="cursor-grab active:cursor-grabbing"
                       >
                         <div className="flex items-center group/note pr-2">
-                          <SidebarMenuButton render={<Link href={`/note/${note.slug}`} />} isActive={pathname === `/note/${note.slug}`} className="flex-1">
+                          <SidebarMenuButton render={<Link href={`/note/${note.slug}`} className="text-inherit!" />} isActive={pathname === `/note/${note.slug}`} className="flex-1">
                             <FileText className="h-3.5 w-3.5 opacity-40" />
                             <span className="truncate">{note.title}</span>
                           </SidebarMenuButton>
@@ -529,7 +600,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                 className="cursor-grab active:cursor-grabbing"
               >
                  <div className="flex items-center group/note pr-2">
-                  <SidebarMenuButton render={<Link href={`/note/${note.slug}`} />} isActive={pathname === `/note/${note.slug}`} className="flex-1">
+                  <SidebarMenuButton render={<Link href={`/note/${note.slug}`} className="text-inherit!" />} isActive={pathname === `/note/${note.slug}`} className="flex-1">
                     <FileText className="h-3.5 w-3.5 opacity-40" />
                     <span className="truncate">{note.title}</span>
                   </SidebarMenuButton>
@@ -693,11 +764,83 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               </select>
             </div>
           )}
+          {dialog.type === 'folder-settings' && (
+            <div className="py-4 space-y-6">
+              <div className="space-y-3">
+                <label className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Custom Color</label>
+                <div className="flex items-center gap-4 bg-background border border-border p-3 rounded-lg">
+                  <input
+                    type="color"
+                    value={folderConfigs[dialog.target!]?.color || "#60a5fa"}
+                    onChange={(e) => {
+                      const current = folderConfigs[dialog.target!] || { color: '#60a5fa', mode: 'text' };
+                      saveFolderConfig(dialog.target!, e.target.value, current.mode);
+                    }}
+                    className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                  />
+                  <Input 
+                    value={folderConfigs[dialog.target!]?.color || ""}
+                    onChange={(e) => {
+                      const current = folderConfigs[dialog.target!] || { color: '#60a5fa', mode: 'text' };
+                      saveFolderConfig(dialog.target!, e.target.value, current.mode);
+                    }}
+                    placeholder="#HEXCODE"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <label className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Display Mode</label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={folderConfigs[dialog.target!]?.mode !== 'bg' ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      const current = folderConfigs[dialog.target!] || { color: '#60a5fa', mode: 'text' };
+                      saveFolderConfig(dialog.target!, current.color, 'text');
+                    }}
+                  >
+                    Text & Icon
+                  </Button>
+                  <Button
+                    variant={folderConfigs[dialog.target!]?.mode === 'bg' ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      const current = folderConfigs[dialog.target!] || { color: '#60a5fa', mode: 'text' };
+                      saveFolderConfig(dialog.target!, current.color, 'bg');
+                    }}
+                  >
+                    Entire Tab
+                  </Button>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full text-xs text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  const newConfigs = { ...folderConfigs };
+                  delete newConfigs[dialog.target!];
+                  setFolderConfigs(newConfigs);
+                  localStorage.setItem('skriva_folder_configs', JSON.stringify(newConfigs));
+                  closeDialog();
+                }}
+              >
+                Reset to Default
+              </Button>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="ghost" onClick={closeDialog} className="text-muted-foreground hover:text-foreground">Cancel</Button>
-            <Button variant={dialog.type?.startsWith('delete') ? 'destructive' : 'default'} onClick={handleConfirm} disabled={isPending || ((dialog.type === 'create-note' || dialog.type === 'create-excalidraw' || dialog.type === 'create-folder' || dialog.type === 'rename') && !inputValue.trim())}>
-              {isPending ? 'Processing...' : 'Confirm'}
+            <Button variant="ghost" onClick={closeDialog} className="text-muted-foreground hover:text-foreground">
+              {dialog.type === 'folder-settings' ? 'Close' : 'Cancel'}
             </Button>
+            {dialog.type !== 'folder-settings' && (
+              <Button variant={dialog.type?.startsWith('delete') ? 'destructive' : 'default'} onClick={handleConfirm} disabled={isPending || ((dialog.type === 'create-note' || dialog.type === 'create-excalidraw' || dialog.type === 'create-folder' || dialog.type === 'rename') && !inputValue.trim())}>
+                {isPending ? 'Processing...' : 'Confirm'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -713,8 +856,8 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring" />
             </div>
           </div>
-          <SidebarContent className="no-scrollbar overflow-x-auto">
-            <div className="min-w-max flex flex-col min-h-full">
+          <SidebarContent className="no-scrollbar overflow-x-hidden">
+            <div className="flex flex-col min-h-full w-full overflow-hidden">
               {!isSearching ? (
                 <SidebarGroup className="flex-1">
                   <SidebarGroupLabel 
@@ -747,13 +890,15 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                       </button>
                     </div>
                   </SidebarGroupLabel>
-                  <SidebarGroupContent><SidebarMenu>{renderTree(fullTree)}</SidebarMenu></SidebarGroupContent>
+                  <SidebarGroupContent className="overflow-x-auto no-scrollbar">
+                    <SidebarMenu className="min-w-max">{renderTree(fullTree)}</SidebarMenu>
+                  </SidebarGroupContent>
                 </SidebarGroup>
               ) : (
                 <SidebarGroup className="flex-1">
                   <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest opacity-30 px-2 mb-1">Results</SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
+                  <SidebarGroupContent className="overflow-x-auto no-scrollbar">
+                    <SidebarMenu className="min-w-max">
                       {searchResults.map(result => (
                         <SidebarMenuItem key={result.slug}>
                           <SidebarMenuButton render={<Link href={`/note/${result.slug}`} />} isActive={pathname === `/note/${result.slug}`} className="h-auto py-2 items-start flex-col gap-1">
@@ -798,7 +943,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                         {templateList.map(tpl => (
                           <SidebarMenuItem key={tpl.slug}>
                             <div className="flex items-center group/tpl pr-2">
-                              <SidebarMenuButton render={<Link href={`/note/${tpl.slug}`} />} isActive={pathname === `/note/${tpl.slug}`} className="flex-1">
+                              <SidebarMenuButton render={<Link href={`/note/${tpl.slug}`} className="text-inherit!" />} isActive={pathname === `/note/${tpl.slug}`} className="flex-1">
                                 <Layout className="h-3.5 w-3.5 opacity-40" />
                                 <span className="truncate">{tpl.title}</span>
                               </SidebarMenuButton>
@@ -841,17 +986,17 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                     <SidebarGroupContent>
                       <SidebarMenu>
                         <SidebarMenuItem>
-                          <SidebarMenuButton render={<Link href="/tags" />} isActive={pathname === '/tags'} tooltip="Tags" className="hover:bg-accent data-[active=true]:bg-accent">
+                          <SidebarMenuButton render={<Link href="/tags" className="text-inherit!" />} isActive={pathname === '/tags'} tooltip="Tags" className="hover:bg-accent data-[active=true]:bg-accent">
                             <Hash className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Tags</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
-                          <SidebarMenuButton render={<Link href="/mentions" />} isActive={pathname === '/mentions'} tooltip="Mentions" className="hover:bg-accent data-[active=true]:bg-accent">
+                          <SidebarMenuButton render={<Link href="/mentions" className="text-inherit!" />} isActive={pathname === '/mentions'} tooltip="Mentions" className="hover:bg-accent data-[active=true]:bg-accent">
                             <AtSign className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Mentions</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
-                          <SidebarMenuButton render={<Link href="/graph" />} isActive={pathname === '/graph'} tooltip="Graph View" className="hover:bg-accent data-[active=true]:bg-accent">
+                          <SidebarMenuButton render={<Link href="/graph" className="text-inherit!" />} isActive={pathname === '/graph'} tooltip="Graph View" className="hover:bg-accent data-[active=true]:bg-accent">
                             <Share2 className="h-4 w-4 opacity-50" /><span className="font-medium text-[13px]">Graph View</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -866,10 +1011,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
 
         <div className="flex flex-1 flex-col overflow-hidden bg-sidebar">
           <header className="flex h-12 shrink-0 items-center gap-2 px-4 bg-transparent sticky top-0 z-20 no-print">
-            <div className={cn(
-              "flex-1 flex items-center min-w-0 transition-all duration-300",
-              isMac && "peer-data-[state=collapsed]:pl-16"
-            )}>
+            <div className="flex-1 flex items-center min-w-0">
               <TabList />
             </div>
             
