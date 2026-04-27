@@ -2,26 +2,41 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { X, FileText, Pencil } from 'lucide-react';
+import { X, FileText, Pencil, Home } from 'lucide-react';
 import { useTabs } from './tabs-context';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
+import { usePathname } from 'next/navigation';
 
 export function TabList() {
   const { tabs, activeTab, closeTab } = useTabs();
   const { state } = useSidebar();
+  const pathname = usePathname();
   
   const isMac = React.useMemo(() => {
     return typeof window !== 'undefined' && window.electron?.platform === 'darwin';
   }, []);
-
-  if (tabs.length === 0) return null;
 
   return (
     <div className={cn(
       "flex items-center gap-1 overflow-x-auto no-scrollbar h-full transition-all duration-300",
       isMac && state === "collapsed" ? "pl-20" : "px-2"
     )}>
+      <Link 
+        href="/" 
+        className={cn(
+          "flex items-center justify-center h-8 w-8 rounded-md transition-all duration-200 shrink-0",
+          pathname === '/' 
+            ? "bg-accent text-accent-foreground shadow-sm" 
+            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+        )}
+        title="Home"
+      >
+        <Home className="h-4 w-4" />
+      </Link>
+
+      {tabs.length > 0 && <div className="h-4 w-px bg-border/40 mx-1 shrink-0" />}
+
       {tabs.map((tab) => (
         <div
           key={tab.slug}

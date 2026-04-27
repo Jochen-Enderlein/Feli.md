@@ -15,6 +15,8 @@ interface TabsContextType {
   closeTab: (slug: string) => void;
   isGraphOpen: boolean;
   setIsGraphOpen: (open: boolean) => void;
+  isReadmeOpen: boolean;
+  setIsReadmeOpen: (open: boolean) => void;
 }
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ const TabsContext = createContext<TabsContextType | undefined>(undefined);
 export function TabsProvider({ children }: { children: React.ReactNode }) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const [isReadmeOpen, setIsReadmeOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -53,7 +56,7 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   const activeTab = pathname.startsWith('/note/') ? decodeURIComponent(pathname.replace('/note/', '')) : null;
 
   return (
-    <TabsContext.Provider value={{ tabs, activeTab, openTab, closeTab, isGraphOpen, setIsGraphOpen }}>
+    <TabsContext.Provider value={{ tabs, activeTab, openTab, closeTab, isGraphOpen, setIsGraphOpen, isReadmeOpen, setIsReadmeOpen }}>
       {children}
     </TabsContext.Provider>
   );

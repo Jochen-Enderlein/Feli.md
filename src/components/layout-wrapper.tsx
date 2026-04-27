@@ -34,26 +34,32 @@ import {
   Search,
   Library,
   Info,
+  Cat,
   Minus,
   Square,
-  X as CloseIcon
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { 
-  createNoteAction, 
-  createFolderAction, 
-  deleteFileAction, 
+  X as CloseIcon,
+  CatIcon,
+  PawPrint
+  } from "lucide-react";
+  import Link from "next/link";
+  import { usePathname, useRouter } from "next/navigation";
+  import {
+  createNoteAction,
+  createFolderAction,
+  deleteFileAction,
   deleteFolderAction,
   moveItemAction,
   moveFolderAction,
   searchNotesAction,
   setVaultPathAction,
   getVaultPathAction,
-  getTemplatesAction
-} from "@/app/actions";
-import { toast } from "sonner";
-import {
+  getTemplatesAction,
+  getReadmeAction
+  } from "@/app/actions";
+  import { toast } from "sonner";
+  import ReactMarkdown from 'react-markdown';
+  import remarkGfm from 'remark-gfm';
+  import rehypeRaw from 'rehype-raw';import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -123,7 +129,7 @@ declare global {
 export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isGraphOpen, setIsGraphOpen } = useTabs();
+  const { isGraphOpen, setIsGraphOpen, isReadmeOpen, setIsReadmeOpen } = useTabs();
   const [dialog, setDialog] = React.useState<DialogState>({ type: null });
   const [inputValue, setInputValue] = React.useState('');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -135,7 +141,24 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
   const [isVaultLoading, setIsVaultLoading] = React.useState(true);
   const [dragOverFolder, setDragOverFolder] = React.useState<string | null>(null);
   const [helpOpen, setHelpOpen] = React.useState(false);
+  const [readmeContent, setReadmeContent] = React.useState('');
   const [folderConfigs, setFolderConfigs] = React.useState<Record<string, { color: string, mode: 'text' | 'bg' }>>({});
+
+  const handleOpenReadme = async () => {
+    const res = await getReadmeAction();
+    if (res.success && res.content) {
+      setReadmeContent(res.content);
+      setIsReadmeOpen(true);
+    } else {
+      toast.error("Could not load README.md");
+    }
+  };
+
+  React.useEffect(() => {
+    if (isReadmeOpen && !readmeContent) {
+      handleOpenReadme();
+    }
+  }, [isReadmeOpen, readmeContent]);
 
   // Load folder configs
   React.useEffect(() => {
@@ -846,16 +869,23 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
       </Dialog>
 
       <div className="flex h-screen w-full overflow-hidden bg-sidebar text-foreground font-sans">
-        <SidebarUI collapsible="offcanvas" className={cn("bg-sidebar border-none! shadow-none! [&>div]:border-none!", isMac && "pt-4")}>
-          {/* Header Spacer to align with main content card */}
-          <div className="h-12 shrink-0" />
+        <SidebarUI 
+          collapsible="offcanvas" 
+          className={cn("bg-sidebar border-none! border-r-0! shadow-none! [&>div]:border-none! [&>div]:border-r-0!")}
+          style={{ borderRight: 'none' }}
+        >
+          {/* Header Spacer to align with main content card - Only on Mac for traffic lights */}
+          {isMac && <SidebarHeader className="h-12 shrink-0 p-0" />}
           
-          <div className="px-3 py-4 group-data-[state=collapsed]:hidden">
-            <div className="relative">
+          <SidebarHeader className={cn(
+            "p-3! group-data-[state=collapsed]:hidden gap-0 flex flex-row items-center w-full",
+            !isMac && "pt-3! pb-2!"
+          )}>
+            <div className="relative w-full">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring" />
+              <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring w-full" />
             </div>
-          </div>
+          </SidebarHeader>
           <SidebarContent className="no-scrollbar overflow-hidden">
             <div className="flex flex-col h-full w-full overflow-hidden">
               {!isSearching ? (
@@ -1016,6 +1046,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
             </div>
             
             <div className="ml-auto flex items-center pl-2 gap-1">
+              {!isMac && <div className="w-12 h-8 shrink-0 no-print" />}
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -1025,10 +1056,38 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               >
                 <Info className="h-4 w-4" />
               </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleOpenReadme}
+                className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity"
+                title="About Feli.md"
+              >
+                <Cat className="h-4 w-4" />
+              </Button>
               <ThemeToggle />
               <WindowControls />
             </div>
           </header>
+
+          <Dialog open={isReadmeOpen} onOpenChange={setIsReadmeOpen}>
+            <DialogContent className="sm:max-w-[700px] max-h-[80vh] bg-popover border-border text-popover-foreground overflow-hidden flex flex-col p-0">
+              <DialogHeader className="p-6 pb-2">
+                <DialogTitle className="flex items-center gap-2">
+                  <Cat className="h-5 w-5 text-primary" />
+                  About Feli.md
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 py-4 prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                  {readmeContent}
+                </ReactMarkdown>
+              </div>
+              <DialogFooter className="p-6 pt-2">
+                <Button onClick={() => setIsReadmeOpen(false)}>Close</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
             <DialogContent className="sm:max-w-[425px] bg-popover border-border text-popover-foreground">

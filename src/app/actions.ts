@@ -178,3 +178,14 @@ export async function importItemsAction(paths: string[], targetFolder: string = 
     return { success: false, error: 'Failed to import items' };
   }
 }
+
+export async function getReadmeAction() {
+  try {
+    const readmePath = path.join(process.cwd(), 'README.md');
+    const content = await fs.readFile(readmePath, 'utf-8');
+    return { success: true, content };
+  } catch (error) {
+    console.error('Action error getting README:', error);
+    return { success: false, error: 'Failed to get README content' };
+  }
+}

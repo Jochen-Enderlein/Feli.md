@@ -34,6 +34,7 @@ import { ExcalidrawEmbed } from './excalidraw-embed';
 
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { html } from '@codemirror/lang-html';
 import { languages } from '@codemirror/language-data';
 import { EditorView } from '@codemirror/view';
 import { blockIconGutter, autocompleteExtensions } from '@/lib/editor/cm-extensions';
@@ -250,6 +251,7 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
 
   const cmExtensions = useMemo(() => [
     markdown({ base: markdownLanguage, codeLanguages: languages }),
+    html(),
     EditorView.lineWrapping,
     blockIconGutter,
     tableEditExtension((pos) => openTableEditorAtCursor(pos)),
