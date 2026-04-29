@@ -44,7 +44,8 @@ import {
   Shuffle,
   AlertCircle,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Settings
   } from "lucide-react";
   import Link from "next/link";
   import { usePathname, useRouter } from "next/navigation";
@@ -90,6 +91,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ThemeToggle } from "./theme-toggle";
+import { SettingsDialog } from "./settings-dialog";
 import { useDebounce } from '@/hooks/use-debounce';
 import { useTabs } from "./tabs-context";
 import { cn } from "@/lib/utils";
@@ -140,6 +142,7 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
   const [isVaultLoading, setIsVaultLoading] = React.useState(true);
   const [dragOverFolder, setDragOverFolder] = React.useState<string | null>(null);
   const [helpOpen, setHelpOpen] = React.useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [readmeContent, setReadmeContent] = React.useState('');
   const [folderConfigs, setFolderConfigs] = React.useState<Record<string, { color: string, mode: 'text' | 'bg' }>>({});
 
@@ -1083,6 +1086,15 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               <Button 
                 variant="ghost" 
                 size="icon" 
+                onClick={() => setIsSettingsOpen(true)}
+                className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity"
+                title="AI Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
                 onClick={() => setHelpOpen(true)}
                 className="h-8 w-8 opacity-50 hover:opacity-100 transition-opacity"
                 title="Editor Shortcuts"
@@ -1121,6 +1133,8 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
 
           <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
             <DialogContent className="sm:max-w-[425px] bg-popover border-border text-popover-foreground">

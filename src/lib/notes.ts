@@ -6,20 +6,37 @@ import os from 'os';
 // Path to store the global configuration
 const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.skriva-config.json');
 
-export function getStoredVaultPath(): string | null {
+export interface AppConfig {
+  vaultPath?: string;
+  aiProvider?: string;
+  aiApiKey?: string;
+  aiBaseUrl?: string;
+  aiModel?: string;
+}
+
+export function getConfig(): AppConfig {
   try {
     if (fssync.existsSync(GLOBAL_CONFIG_PATH)) {
-      const config = JSON.parse(fssync.readFileSync(GLOBAL_CONFIG_PATH, 'utf-8'));
-      return config.vaultPath;
+      return JSON.parse(fssync.readFileSync(GLOBAL_CONFIG_PATH, 'utf-8'));
     }
   } catch (error) {
     console.error('Error reading global config:', error);
   }
-  return null;
+  return {};
+}
+
+export function updateConfig(newConfig: Partial<AppConfig>) {
+  const config = getConfig();
+  const updated = { ...config, ...newConfig };
+  fssync.writeFileSync(GLOBAL_CONFIG_PATH, JSON.stringify(updated, null, 2));
+}
+
+export function getStoredVaultPath(): string | null {
+  return getConfig().vaultPath || null;
 }
 
 export function setStoredVaultPath(vaultPath: string) {
-  fssync.writeFileSync(GLOBAL_CONFIG_PATH, JSON.stringify({ vaultPath }, null, 2));
+  updateConfig({ vaultPath });
 }
 
 function getNotesPath(): string {

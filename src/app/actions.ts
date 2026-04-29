@@ -185,6 +185,22 @@ export async function setVaultPathAction(vaultPath: string) {
   return { success: true };
 }
 
+export async function getConfigAction() {
+  const { getConfig } = await import('@/lib/notes');
+  return { success: true, config: getConfig() };
+}
+
+export async function updateConfigAction(newConfig: any) {
+  const { updateConfig } = await import('@/lib/notes');
+  try {
+    updateConfig(newConfig);
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: 'Failed to update config' };
+  }
+}
+
 export async function importItemsAction(paths: string[], targetFolder: string = '') {
   try {
     const { getStoredVaultPath } = await import('@/lib/notes');
@@ -228,5 +244,100 @@ export async function getRandomNoteAction() {
     return { success: true, slug: notes[randomIndex].slug };
   } catch (error) {
     return { success: false, error: 'Failed to pick random note' };
+  }
+}
+
+export async function summarizeNoteAction(content: string) {
+  try {
+    const { getConfig } = await import('@/lib/notes');
+    const config = getConfig();
+    const provider = config.aiProvider || 'openai';
+    const apiKey = config.aiApiKey || '';
+    const baseUrl = config.aiBaseUrl || '';
+    const model = config.aiModel || '';
+
+    if (!apiKey && provider !== 'ollama' && provider !== 'custom') {
+      return { success: false, error: 'API Key missing for ' + provider };
+    }
+
+    const prompt = `Please summarize the following note content concisely in its original language:\n\n${content}`;
+    let summary = '';
+
+    if (provider === 'openai') {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: model || 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      summary = data.choices[0].message.content;
+    } else if (provider === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: model || 'claude-3-5-sonnet-20240620',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      summary = data.content[0].text;
+    } else if (provider === 'google') {
+      const gModel = model || 'gemini-1.5-flash';
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      summary = data.candidates[0].content.parts[0].text;
+    } else if (provider === 'ollama') {
+      const oBase = baseUrl || 'http://localhost:11434';
+      const res = await fetch(`${oBase.replace(/\/$/, '')}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: model || 'llama3',
+          prompt: prompt,
+          stream: false
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      summary = data.response;
+    } else if (provider === 'custom') {
+      const cBase = baseUrl || 'http://localhost:8080/v1';
+      const res = await fetch(`${cBase.replace(/\/$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: model || 'default',
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      summary = data.choices[0].message.content;
+    } else {
+      return { success: false, error: 'Unknown provider' };
+    }
+
+    return { success: true, summary };
+  } catch (error: any) {
+    console.error('AI Summary error:', error);
+    return { success: false, error: error.message || 'Failed to generate summary' };
   }
 }
