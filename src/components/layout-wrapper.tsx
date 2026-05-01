@@ -924,22 +924,6 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
           {/* Header Spacer to align with main content card - Only on Mac for traffic lights */}
           {isMac && <SidebarHeader className="h-12 shrink-0 p-0" />}
           
-          <SidebarHeader className={cn(
-            "p-3! group-data-[state=collapsed]:hidden gap-0 flex flex-row items-center w-full",
-            !isMac && "pt-3! pb-2!"
-          )}>
-            <div className="flex items-center justify-between w-full">
-               <button 
-                  onClick={handleSelectVault}
-                  className="flex items-center gap-1.5 truncate max-w-[150px] text-left cursor-pointer group"
-                  title="Switch Vault"
-                >
-                  <Library className="h-3.5 w-3.5 opacity-50 group-hover:opacity-100 transition-opacity text-primary" />
-                  <span className="truncate text-[11px] font-bold uppercase tracking-widest opacity-50 group-hover:opacity-100 transition-opacity">{vaultPath ? vaultPath.split(/[/\\]/).pop() : 'Select Vault'}</span>
-                  <ChevronDown className="h-3 w-3 opacity-30 group-hover:opacity-100 transition-opacity" />
-                </button>
-            </div>
-          </SidebarHeader>
           <SidebarContent className="no-scrollbar overflow-hidden">
             <div className="flex flex-col h-full w-full overflow-hidden">
                 <SidebarGroup className="flex-1 min-h-0 flex flex-col">
@@ -953,7 +937,15 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                       dragOverFolder === 'root' ? "bg-primary/20 text-primary ring-1 ring-primary" : ""
                     )}
                   >
-                    <span className="opacity-50">Explorer</span>
+                    <button 
+                      onClick={handleSelectVault}
+                      className="flex items-center gap-1.5 truncate max-w-[150px] text-left cursor-pointer group/vault px-2 py-1 rounded border border-border/40 hover:border-border/80 hover:bg-accent/30 transition-all"
+                      title="Switch Vault"
+                    >
+                      <Library className="h-3.5 w-3.5 opacity-50 group-hover/vault:opacity-100 transition-opacity text-primary" />
+                      <span className="truncate opacity-50 group-hover/vault:opacity-100 transition-opacity text-[11px]">{vaultPath ? vaultPath.split(/[/\\]/).pop() : 'Select Vault'}</span>
+                      <ChevronDown className="h-3 w-3 opacity-30 group-hover/vault:opacity-100 transition-opacity" />
+                    </button>
                     <div className="flex items-center gap-0.5">
                       <button onClick={() => setIsSearchOpen(true)} className="hover:bg-white/10 p-1 rounded transition-colors text-sidebar-foreground opacity-50 hover:opacity-100" title="Search (Ctrl+F)">
                         <Search className="h-3 w-3" />
