@@ -10,8 +10,30 @@ import {
   getStoredVaultPath,
   setStoredVaultPath,
   getNoteContent,
-  getTemplates
+  getTemplates,
+  getTasksFromFolder,
+  toggleTask
 } from '@/lib/notes';
+
+export async function toggleTaskAction(noteSlug: string, line: number, checked: boolean) {
+  try {
+    await toggleTask(noteSlug, line, checked);
+    return { success: true };
+  } catch (error) {
+    console.error('Action error toggling task:', error);
+    return { success: false, error: 'Failed to toggle task' };
+  }
+}
+
+export async function getTasksFromFolderAction(folderPath: string) {
+  try {
+    const tasks = await getTasksFromFolder(folderPath);
+    return { success: true, tasks };
+  } catch (error) {
+    console.error('Action error getting tasks:', error);
+    return { success: false, error: 'Failed to get tasks' };
+  }
+}
 
 export async function getTemplatesAction() {
   try {

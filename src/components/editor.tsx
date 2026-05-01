@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { saveNoteAction, summarizeNoteAction } from '@/app/actions';
+import { saveNoteAction, summarizeNoteAction, getTasksFromFolderAction, toggleTaskAction } from '@/app/actions';
 import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/use-debounce';
-import { NoteMetadata } from '@/lib/notes';
+import { NoteMetadata, Task } from '@/lib/notes';
 import { useTabs } from './tabs-context';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -106,6 +106,91 @@ function Mermaid({ chart }: { chart: string }) {
       className="flex justify-center my-6 overflow-x-auto bg-black/10 rounded-xl p-4 min-h-[100px] items-center print:bg-transparent print:p-0 print:min-h-0" 
       dangerouslySetInnerHTML={{ __html: svg || '<div class="animate-pulse print:hidden">Rendering diagram...</div><div class="hidden print:block text-xs text-muted-foreground">Preparing diagram...</div>' }} 
     />
+  );
+}
+
+function TaskQuery({ folderPath }: { folderPath: string }) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchTasks = useCallback(async () => {
+    setIsLoading(true);
+    const res = await getTasksFromFolderAction(folderPath);
+    if (res.success && res.tasks) {
+      setTasks(res.tasks);
+    }
+    setIsLoading(false);
+  }, [folderPath]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  const handleToggle = async (task: Task) => {
+    const newChecked = !task.checked;
+    
+    // Optimistic update
+    setTasks(prev => prev.map(t => 
+      (t.noteSlug === task.noteSlug && t.line === task.line) 
+        ? { ...t, checked: newChecked } 
+        : t
+    ).sort((a, b) => {
+      if (a.checked === b.checked) return 0;
+      return a.checked ? 1 : -1;
+    }));
+
+    const res = await toggleTaskAction(task.noteSlug, task.line, newChecked);
+    if (!res.success) {
+      toast.error('Failed to update task');
+      fetchTasks(); // Revert on failure
+    }
+  };
+
+  if (isLoading) return <div className="text-xs text-muted-foreground animate-pulse my-6 p-4 rounded-xl border border-dashed border-border flex items-center justify-center">Loading tasks from {folderPath}...</div>;
+  if (tasks.length === 0) return <div className="text-xs text-muted-foreground italic my-6 p-4 rounded-xl border border-dashed border-border flex items-center justify-center">No tasks found in {folderPath}</div>;
+
+  return (
+    <div className="my-6 p-4 rounded-xl bg-accent/10 border border-border shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+          <ListIcon className="h-3 w-3" />
+          <span>Tasks: {folderPath || 'Root'}</span>
+        </div>
+        <button 
+          onClick={() => fetchTasks()} 
+          className="text-[10px] uppercase tracking-widest font-bold opacity-30 hover:opacity-100 transition-opacity"
+        >
+          Refresh
+        </button>
+      </div>
+      <div className="space-y-2">
+        {tasks.map((task, i) => (
+          <div key={`${task.noteSlug}-${task.line}-${i}`} className="flex items-start gap-3 group">
+            <input
+              type="checkbox"
+              checked={task.checked}
+              onChange={() => handleToggle(task)}
+              className="mt-1 h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer transition-all"
+            />
+            <div className="flex-1 min-w-0">
+              <div className={cn(
+                "text-sm leading-relaxed",
+                task.checked ? "text-muted-foreground line-through decoration-muted-foreground/50" : "text-foreground"
+              )}>
+                {task.text}
+              </div>
+              <Link 
+                href={`/note/${task.noteSlug}#L${task.line}`}
+                className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 mt-0.5"
+              >
+                <div className="w-1 h-1 rounded-full bg-border" />
+                {task.noteTitle}
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -703,6 +788,14 @@ export function Editor({ slug, initialContent, allNotes, graphData, backlinks: i
                             ? (node.children as any[]).map(c => c.value || (c.children ? c.children.map((cc: any) => cc.value).join('') : '')).join('')
                             : '';
                           
+                          if (textContent.trim() === '--[]--') {
+                            // Derive the current folder path from the slug
+                            const parts = decodeURIComponent(slug).split('/');
+                            parts.pop(); // Remove the filename
+                            const currentFolder = parts.join('/');
+                            return <TaskQuery folderPath={currentFolder} />;
+                          }
+
                           const calloutMatch = textContent.match(/^\[!(\w+)\]/);
                           if (calloutMatch) {
                             const type = calloutMatch[1].toLowerCase();

@@ -55,6 +55,66 @@ export interface NoteMetadata {
   relativeDir: string;
 }
 
+export interface Task {
+  text: string;
+  checked: boolean;
+  noteSlug: string;
+  noteTitle: string;
+  line: number;
+}
+
+export async function getTasksFromFolder(dir: string = ''): Promise<Task[]> {
+  const notes = await getNotes(dir);
+  const allTasks: Task[] = [];
+
+  for (const note of notes) {
+    if (!note.slug.endsWith('.md') && !fssync.existsSync(getFilePathFromSlug(getNotesPath(), note.slug))) {
+       // getNotes already filters, but let's be safe
+    }
+    
+    try {
+      const content = await getNoteContent(note.slug);
+      const lines = content.split('\n');
+      
+      lines.forEach((line, index) => {
+        const taskMatch = line.match(/^(\s*[-*+]\s+\[)([ xX])(\].*)$/);
+        if (taskMatch) {
+          allTasks.push({
+            text: taskMatch[3].substring(1).trim(),
+            checked: taskMatch[2].toLowerCase() === 'x',
+            noteSlug: note.slug,
+            noteTitle: note.title,
+            line: index + 1
+          });
+        }
+      });
+    } catch (e) {
+      console.error(`Error reading tasks from ${note.slug}:`, e);
+    }
+  }
+
+  // Sort: unchecked (false) first, then checked (true)
+  return allTasks.sort((a, b) => {
+    if (a.checked === b.checked) return 0;
+    return a.checked ? 1 : -1;
+  });
+}
+
+export async function toggleTask(noteSlug: string, line: number, checked: boolean): Promise<void> {
+  const content = await getNoteContent(noteSlug);
+  const lines = content.split('\n');
+  
+  if (line > 0 && line <= lines.length) {
+    const lineIndex = line - 1;
+    const taskMatch = lines[lineIndex].match(/^(\s*[-*+]\s+\[)([ xX])(\].*)$/);
+    
+    if (taskMatch) {
+      lines[lineIndex] = taskMatch[1] + (checked ? 'x' : ' ') + taskMatch[3];
+      await saveNote(noteSlug, lines.join('\n'));
+    }
+  }
+}
+
 export async function getNotes(dir: string = '', includeTemplates: boolean = false): Promise<NoteMetadata[]> {
   const notesBase = getNotesPath();
   const fullPath = path.join(notesBase, dir);
