@@ -50,6 +50,14 @@ import {
   import Link from "next/link";
   import { usePathname, useRouter } from "next/navigation";
   import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
   createNoteAction,
   createDailyNoteAction,
   getRandomNoteAction,
@@ -143,8 +151,21 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
   const [dragOverFolder, setDragOverFolder] = React.useState<string | null>(null);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [readmeContent, setReadmeContent] = React.useState('');
   const [folderConfigs, setFolderConfigs] = React.useState<Record<string, { color: string, mode: 'text' | 'bg' }>>({});
+
+  React.useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'f' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setIsSearchOpen((open) => !open);
+      }
+    };
+
+    document.addEventListener('keydown', down);
+    return () => document.removeEventListener('keydown', down);
+  }, []);
 
   const handleOpenReadme = async () => {
     const res = await getReadmeAction();
@@ -894,11 +915,12 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
       </Dialog>
 
       <div className="flex h-screen w-full overflow-hidden bg-sidebar text-foreground font-sans">
-        <SidebarUI 
-          collapsible="offcanvas" 
-          className={cn("bg-sidebar border-none! border-r-0! shadow-none! [&>div]:border-none! [&>div]:border-r-0!")}
+        <SidebarUI
+          collapsible="offcanvas"
+          className={cn("bg-sidebar border-none! border-r-0! shadow-none! [&>div]:border-none! [&>div]:border-r-0! mt-1")}
           style={{ borderRight: 'none' }}
         >
+
           {/* Header Spacer to align with main content card - Only on Mac for traffic lights */}
           {isMac && <SidebarHeader className="h-12 shrink-0 p-0" />}
           
@@ -906,14 +928,20 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
             "p-3! group-data-[state=collapsed]:hidden gap-0 flex flex-row items-center w-full",
             !isMac && "pt-3! pb-2!"
           )}>
-            <div className="relative w-full">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder="Search content..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-8 pl-8 bg-background border-border text-[12px] focus-visible:ring-ring w-full" />
+            <div className="flex items-center justify-between w-full">
+               <button 
+                  onClick={handleSelectVault}
+                  className="flex items-center gap-1.5 truncate max-w-[150px] text-left cursor-pointer group"
+                  title="Switch Vault"
+                >
+                  <Library className="h-3.5 w-3.5 opacity-50 group-hover:opacity-100 transition-opacity text-primary" />
+                  <span className="truncate text-[11px] font-bold uppercase tracking-widest opacity-50 group-hover:opacity-100 transition-opacity">{vaultPath ? vaultPath.split(/[/\\]/).pop() : 'Select Vault'}</span>
+                  <ChevronDown className="h-3 w-3 opacity-30 group-hover:opacity-100 transition-opacity" />
+                </button>
             </div>
           </SidebarHeader>
           <SidebarContent className="no-scrollbar overflow-hidden">
             <div className="flex flex-col h-full w-full overflow-hidden">
-              {!isSearching ? (
                 <SidebarGroup className="flex-1 min-h-0 flex flex-col">
                   <SidebarGroupLabel 
                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -925,15 +953,11 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                       dragOverFolder === 'root' ? "bg-primary/20 text-primary ring-1 ring-primary" : ""
                     )}
                   >
-                    <button 
-                      onClick={handleSelectVault}
-                      className="flex items-center gap-1.5 truncate max-w-[130px] text-left cursor-pointer group"
-                      title="Switch Vault"
-                    >
-                      <span className="truncate opacity-50 group-hover:opacity-100 transition-opacity">{vaultPath ? vaultPath.split(/[/\\]/).pop() : 'Select Vault'}</span>
-                      <ChevronDown className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                    <div className="flex items-center gap-1">
+                    <span className="opacity-50">Explorer</span>
+                    <div className="flex items-center gap-0.5">
+                      <button onClick={() => setIsSearchOpen(true)} className="hover:bg-white/10 p-1 rounded transition-colors text-sidebar-foreground opacity-50 hover:opacity-100" title="Search (Ctrl+F)">
+                        <Search className="h-3 w-3" />
+                      </button>
                       <button onClick={() => setDialog({ type: 'create-note', parentFolder: '' })} className="hover:bg-white/10 p-1 rounded transition-colors text-sidebar-foreground opacity-50 hover:opacity-100" title="New Note">
                         <Plus className="h-3 w-3" />
                       </button>
@@ -949,24 +973,6 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                     <SidebarMenu className="min-w-max">{renderTree(fullTree)}</SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
-              ) : (
-                <SidebarGroup className="flex-1 min-h-0 flex flex-col">
-                  <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest opacity-30 px-2 mb-1">Results</SidebarGroupLabel>
-                  <SidebarGroupContent className="flex-1 overflow-y-auto no-scrollbar">
-                    <SidebarMenu className="min-w-max">
-                      {searchResults.map(result => (
-                        <SidebarMenuItem key={result.slug}>
-                          <SidebarMenuButton render={<Link href={`/note/${result.slug}`} />} isActive={pathname === `/note/${result.slug}`} className="h-auto py-2 items-start flex-col gap-1">
-                            <span className="font-medium text-[13px]">{result.title}</span>
-                            <span className="text-[11px] opacity-40 italic line-clamp-2 leading-tight text-muted-foreground">{result.snippet}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                      {searchResults.length === 0 && <div className="p-4 text-xs text-muted-foreground italic text-center">No matches found</div>}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              )}
 
               <Collapsible defaultOpen className="group/templates">
                 <SidebarGroup className="mt-auto">
@@ -1136,6 +1142,54 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
 
           <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
 
+          <CommandDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} shouldFilter={false}>
+            <CommandInput 
+              placeholder="Search all notes..." 
+              value={searchQuery} 
+              onValueChange={setSearchQuery} 
+            />
+            <CommandList className="max-h-[60vh]">
+              <CommandEmpty>
+                <div className="p-8 text-center text-muted-foreground">
+                  <Library className="h-8 w-8 mx-auto mb-3 opacity-20" />
+                  <p className="text-xs uppercase tracking-[0.2em] font-bold">No results found</p>
+                  <p className="text-[11px] mt-1 opacity-50">Try a different search term or check your spelling</p>
+                </div>
+              </CommandEmpty>
+              {searchResults.length > 0 && (
+                <CommandGroup heading="Results">
+                  {searchResults.map((result) => (
+                    <CommandItem
+                      key={result.slug}
+                      value={result.title}
+                      onSelect={() => {
+                        router.push(`/note/${result.slug}`);
+                        setIsSearchOpen(false);
+                        setSearchQuery('');
+                      }}
+                      className="flex flex-col items-start py-3"
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-semibold text-sm truncate">{result.title}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed pl-6">
+                        {result.snippet}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {searchQuery.length < 2 && searchResults.length === 0 && (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Search className="h-8 w-8 mx-auto mb-3 opacity-20" />
+                  <p className="text-xs uppercase tracking-[0.2em] font-bold">Search Note Content</p>
+                  <p className="text-[11px] mt-1 opacity-50">Type at least 2 characters to search</p>
+                </div>
+              )}
+            </CommandList>
+          </CommandDialog>
+
           <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
             <DialogContent className="sm:max-w-[425px] bg-popover border-border text-popover-foreground">
               <DialogHeader>
@@ -1173,9 +1227,13 @@ export function LayoutWrapper({ notes, folders, children }: LayoutWrapperProps) 
                   <kbd className="px-2 py-1 bg-muted rounded border border-border text-center font-mono font-bold text-primary">\</kbd>
                   <span>Math Symbols: Autocomplete for LaTeX commands</span>
                 </div>
-                <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+                <div className="grid grid-cols-[80px_1fr] gap-2 items-center border-b border-border pb-3">
                   <kbd className="px-2 py-1 bg-muted rounded border border-border text-center font-mono font-bold text-primary">&gt; [!info]</kbd>
                   <span>Callouts: Colored info/warning boxes</span>
+                </div>
+                <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+                  <kbd className="px-2 py-1 bg-muted rounded border border-border text-center font-mono font-bold text-primary">--[]--</kbd>
+                  <span>Tasks: Dynamic list from current folder</span>
                 </div>
               </div>
               <DialogFooter>

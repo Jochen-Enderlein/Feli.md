@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import fssync from 'fs';
 import path from 'path';
 import os from 'os';
+import Fuse from 'fuse.js';
 
 // Path to store the global configuration
 const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.skriva-config.json');
@@ -264,35 +265,52 @@ export async function moveFolder(oldPath: string, newPath: string): Promise<void
 
 export async function searchNotes(query: string): Promise<{ slug: string; title: string; snippet: string }[]> {
   const notes = await getNotes();
-  const results: { slug: string; title: string; snippet: string }[] = [];
-  const lowerQuery = query.toLowerCase();
+  const searchData: { slug: string; title: string; content: string }[] = [];
 
   for (const note of notes) {
-    const content = await getNoteContent(note.slug);
-    const plainText = content.replace(/<[^>]*>/g, ' ');
-    const lowerContent = plainText.toLowerCase();
-    
-    if (note.title.toLowerCase().includes(lowerQuery) || lowerContent.includes(lowerQuery)) {
-      let snippet = '';
-      const index = lowerContent.indexOf(lowerQuery);
-      
-      if (index !== -1) {
-        const start = Math.max(0, index - 40);
-        const end = Math.min(plainText.length, index + query.length + 40);
-        snippet = `...${plainText.substring(start, end).replace(/\s+/g, ' ').trim()}...`;
-      } else {
-        snippet = plainText.substring(0, 80).replace(/\s+/g, ' ').trim() + '...';
-      }
-
-      results.push({
+    try {
+      const content = await getNoteContent(note.slug);
+      const plainText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      searchData.push({
         slug: note.slug,
         title: note.title,
-        snippet
+        content: plainText
       });
+    } catch (e) {
+      // Skip notes that can't be read
     }
   }
 
-  return results;
+  const fuse = new Fuse(searchData, {
+    keys: ['title', 'content'],
+    threshold: 0.4,
+    includeMatches: true,
+    minMatchCharLength: 2,
+  });
+
+  const fuseResults = fuse.search(query);
+  
+  return fuseResults.map(result => {
+    const { item, matches } = result;
+    let snippet = '';
+    
+    // Find a snippet from content if possible
+    const contentMatch = matches?.find(m => m.key === 'content');
+    if (contentMatch && contentMatch.indices.length > 0) {
+      const [start, end] = contentMatch.indices[0];
+      const snippetStart = Math.max(0, start - 40);
+      const snippetEnd = Math.min(item.content.length, end + 40);
+      snippet = `...${item.content.substring(snippetStart, snippetEnd).trim()}...`;
+    } else {
+      snippet = item.content.substring(0, 80).trim() + '...';
+    }
+
+    return {
+      slug: item.slug,
+      title: item.title,
+      snippet
+    };
+  });
 }
 
 export async function getBacklinks(targetTitle: string): Promise<{ title: string; slug: string; snippet: string }[]> {
